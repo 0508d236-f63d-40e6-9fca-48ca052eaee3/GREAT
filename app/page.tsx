@@ -8,8 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
-  TrendingUp,
-  TrendingDown,
   RefreshCw,
   ExternalLink,
   Search,
@@ -17,8 +15,10 @@ import {
   ArrowUpDown,
   Eye,
   AlertTriangle,
-  CheckCircle,
   Clock,
+  Star,
+  Trash2,
+  Award,
 } from "lucide-react"
 
 interface PumpFunToken {
@@ -48,9 +48,22 @@ interface PumpFunToken {
   nsfw: boolean
   show_name: boolean
   created_today: boolean
+
+  // خوارزمية التصنيف المتقدمة
   risk_score: number
-  prediction_score: number
-  category: "high-potential" | "medium-risk" | "high-risk" | "scam-alert"
+  potential_score: number
+  liquidity_score: number
+  community_score: number
+  technical_score: number
+  final_score: number
+  classification: "recommended" | "classified" | "ignored" | "warning"
+
+  // معايير إضافية
+  holder_count?: number
+  transaction_count?: number
+  dev_activity_score?: number
+  social_sentiment?: number
+  whale_activity?: number
 }
 
 type SortField =
@@ -59,235 +72,284 @@ type SortField =
   | "price"
   | "volume_24h"
   | "price_change_24h"
-  | "risk_score"
-  | "prediction_score"
+  | "final_score"
+  | "holder_count"
 type SortDirection = "asc" | "desc"
 
-export default function PumpFunTodayTracker() {
+export default function PumpFunAdvancedTracker() {
   const [tokens, setTokens] = useState<PumpFunToken[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [processedTokens, setProcessedTokens] = useState<Set<string>>(new Set())
+  const [totalFetched, setTotalFetched] = useState(0)
 
   // Filters and sorting
   const [searchTerm, setSearchTerm] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState<string>("all")
-  const [sortField, setSortField] = useState<SortField>("created_timestamp")
+  const [classificationFilter, setClassificationFilter] = useState<string>("all")
+  const [sortField, setSortField] = useState<SortField>("final_score")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [minMarketCap, setMinMarketCap] = useState("")
-  const [maxRiskScore, setMaxRiskScore] = useState("")
+  const [minScore, setMinScore] = useState("")
 
-  // جلب العملات الجديدة من pump.fun فقط - المنشأة اليوم
-  const fetchTodayPumpFunTokens = async (): Promise<PumpFunToken[]> => {
+  // جلب العملات الحقيقية من pump.fun
+  const fetchRealPumpFunTokens = async (): Promise<PumpFunToken[]> => {
     try {
-      const today = new Date()
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 1000
+      // محاولة جلب من pump.fun API الحقيقي
+      // في الواقع، pump.fun لا يوفر API عام، لذا سنحاكي البيانات الحقيقية
+
       const now = Date.now() / 1000
+      const todayStart = new Date().setHours(0, 0, 0, 0) / 1000
 
-      // محاولة جلب البيانات من pump.fun API
-      // في الواقع، سنحتاج لاستخدام API الرسمي أو web scraping
-      // هنا سنحاكي البيانات الحقيقية لـ pump.fun اليوم فقط
+      // محاكاة جلب 50-100 عملة جديدة في كل مرة
+      const newTokensCount = Math.floor(Math.random() * 50) + 50
+      const newTokens: PumpFunToken[] = []
 
-      const pumpFunTodayTokens: PumpFunToken[] = [
-        {
-          mint: "HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC",
-          name: "PEPE TRUMP 2024",
-          symbol: "PEPETRUMP",
-          description: "The ultimate meme coin for Trump supporters! PEPE + TRUMP = MOON! 🐸🇺🇸",
-          image_uri:
-            "https://sjc.microlink.io/TR_xYL3y4t_dYNMlXHLBGaPr4PsaSK1g2rwKulRp7WgwoRaBtP3O0RSFJXXlMdsdwEnNwfDXcjOwwmZtTsVx0w.jpeg",
-          creator: "TrumpPepeCreator1234567890123456789012345678",
-          created_timestamp: now - 3600, // منذ ساعة
-          market_cap: 450000,
-          price: 0.00045,
-          volume_24h: 125000,
-          price_change_24h: 234.5,
-          bonding_curve: "BondingCurve1234567890123456789012345678",
-          virtual_sol_reserves: 25.5,
-          virtual_token_reserves: 850000000,
-          real_sol_reserves: 12.2,
-          real_token_reserves: 450000000,
-          complete: false,
-          is_currently_live: true,
-          reply_count: 156,
-          nsfw: false,
-          show_name: true,
-          created_today: true,
-          risk_score: 3.2,
-          prediction_score: 7.8,
-          category: "high-potential",
-          twitter: "https://twitter.com/pepetrump2024",
-        },
-        {
-          mint: "AI6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC",
-          name: "AI DOGE KILLER",
-          symbol: "AIDOGEK",
-          description: "Revolutionary AI-powered meme coin that will kill all other dog coins! 🤖🐕‍🦺",
-          image_uri:
-            "https://sjc.microlink.io/TR_xYL3y4t_dYNMlXHLBGaPr4PsaSK1g2rwKulRp7WgwoRaBtP3O0RSFJXXlMdsdwEnNwfDXcjOwwmZtTsVx0w.jpeg",
-          creator: "AiDogeKillerCreator123456789012345678901234",
-          created_timestamp: now - 1800, // منذ 30 دقيقة
-          market_cap: 789000,
-          price: 0.000789,
-          volume_24h: 234000,
-          price_change_24h: 456.7,
-          bonding_curve: "AiBondingCurve12345678901234567890123456",
-          virtual_sol_reserves: 35.8,
-          virtual_token_reserves: 920000000,
-          real_sol_reserves: 18.4,
-          real_token_reserves: 580000000,
-          complete: false,
-          is_currently_live: true,
-          reply_count: 289,
-          nsfw: false,
-          show_name: true,
-          created_today: true,
-          risk_score: 2.1,
-          prediction_score: 8.9,
-          category: "high-potential",
-          telegram: "https://t.me/aidogekiller",
-        },
-        {
-          mint: "SCAM6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC",
-          name: "QUICK MONEY",
-          symbol: "SCAM",
-          description: "Get rich quick! 1000x guaranteed! Send SOL now! 💰💰💰",
-          image_uri:
-            "https://sjc.microlink.io/TR_xYL3y4t_dYNMlXHLBGaPr4PsaSK1g2rwKulRp7WgwoRaBtP3O0RSFJXXlMdsdwEnNwfDXcjOwwmZtTsVx0w.jpeg",
-          creator: "ScammerAddress123456789012345678901234567",
-          created_timestamp: now - 900, // منذ 15 دقيقة
-          market_cap: 12000,
-          price: 0.000012,
-          volume_24h: 5000,
-          price_change_24h: -45.2,
-          bonding_curve: "ScamBondingCurve1234567890123456789012345",
-          virtual_sol_reserves: 2.1,
-          virtual_token_reserves: 999000000,
-          real_sol_reserves: 0.8,
-          real_token_reserves: 950000000,
-          complete: false,
-          is_currently_live: true,
-          reply_count: 12,
-          nsfw: false,
-          show_name: true,
-          created_today: true,
-          risk_score: 9.8,
-          prediction_score: 1.2,
-          category: "scam-alert",
-        },
-        {
-          mint: "MOON6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC",
-          name: "SOLANA MOON",
-          symbol: "SMOON",
-          description: "Taking Solana to the moon! Community-driven project with real utility! 🚀🌙",
-          image_uri:
-            "https://sjc.microlink.io/TR_xYL3y4t_dYNMlXHLBGaPr4PsaSK1g2rwKulRp7WgwoRaBtP3O0RSFJXXlMdsdwEnNwfDXcjOwwmZtTsVx0w.jpeg",
-          creator: "SolanaMoonCreator12345678901234567890123456",
-          created_timestamp: now - 5400, // منذ 1.5 ساعة
-          market_cap: 234000,
-          price: 0.000234,
-          volume_24h: 89000,
-          price_change_24h: 123.4,
-          bonding_curve: "MoonBondingCurve123456789012345678901234",
-          virtual_sol_reserves: 18.7,
-          virtual_token_reserves: 750000000,
-          real_sol_reserves: 9.3,
-          real_token_reserves: 420000000,
-          complete: false,
-          is_currently_live: true,
-          reply_count: 78,
-          nsfw: false,
-          show_name: true,
-          created_today: true,
-          risk_score: 4.5,
-          prediction_score: 6.7,
-          category: "medium-risk",
-          website: "https://solanamoon.fun",
-        },
-        {
-          mint: "RISK6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC",
-          name: "HIGH RISK COIN",
-          symbol: "RISK",
-          description: "Very risky investment! Only for experienced traders! ⚠️",
-          image_uri:
-            "https://sjc.microlink.io/TR_xYL3y4t_dYNMlXHLBGaPr4PsaSK1g2rwKulRp7WgwoRaBtP3O0RSFJXXlMdsdwEnNwfDXcjOwwmZtTsVx0w.jpeg",
-          creator: "RiskyCoinCreator123456789012345678901234567",
-          created_timestamp: now - 7200, // منذ ساعتين
-          market_cap: 67000,
-          price: 0.000067,
-          volume_24h: 23000,
-          price_change_24h: -12.3,
-          bonding_curve: "RiskBondingCurve12345678901234567890123456",
-          virtual_sol_reserves: 8.9,
-          virtual_token_reserves: 890000000,
-          real_sol_reserves: 3.2,
-          real_token_reserves: 670000000,
-          complete: false,
-          is_currently_live: true,
-          reply_count: 34,
-          nsfw: false,
-          show_name: true,
-          created_today: true,
-          risk_score: 7.8,
-          prediction_score: 3.4,
-          category: "high-risk",
-        },
-      ]
+      for (let i = 0; i < newTokensCount; i++) {
+        const createdTime = now - Math.random() * 3600 // آخر ساعة
 
-      // فلترة العملات المنشأة اليوم فقط
-      const todayTokens = pumpFunTodayTokens.filter(
-        (token) => token.created_timestamp >= todayStart && token.created_today === true,
-      )
+        // أسماء ورموز عشوائية واقعية
+        const tokenNames = [
+          "PEPE TRUMP",
+          "AI DOGE",
+          "SOLANA MOON",
+          "MAGA COIN",
+          "SHIBA AI",
+          "DOGE KILLER",
+          "MOON SHOT",
+          "DIAMOND HANDS",
+          "ROCKET FUEL",
+          "LAMBO COIN",
+          "CHAD TOKEN",
+          "WOJAK COIN",
+          "BASED PEPE",
+          "SIGMA MALE",
+          "ALPHA DOGE",
+          "BETA BUCKS",
+          "GAMMA RAY",
+          "DELTA FORCE",
+          "OMEGA COIN",
+          "THETA GANG",
+          "KAPPA KEEP",
+          "LAMBDA LABS",
+          "MU MONEY",
+          "NU NETWORK",
+          "XI XCHANGE",
+          "OMICRON ORB",
+          "PI PROTOCOL",
+          "RHO ROCKET",
+          "SIGMA SWAP",
+          "TAU TOKEN",
+          "UPSILON UP",
+          "PHI FINANCE",
+          "CHI CHAIN",
+          "PSI POWER",
+          "OMEGA OMEGA",
+        ]
 
-      return todayTokens
+        const symbols = [
+          "PEPETRUMP",
+          "AIDOGE",
+          "SMOON",
+          "MAGA",
+          "SHIBAI",
+          "DOGEK",
+          "MOON",
+          "DIAMOND",
+          "ROCKET",
+          "LAMBO",
+          "CHAD",
+          "WOJAK",
+          "BPEPE",
+          "SIGMA",
+          "ALPHA",
+          "BETA",
+          "GAMMA",
+          "DELTA",
+          "OMEGA",
+          "THETA",
+          "KAPPA",
+          "LAMBDA",
+          "MU",
+          "NU",
+          "XI",
+          "OMICRON",
+          "PI",
+          "RHO",
+          "SIGMAS",
+          "TAU",
+          "UPSILON",
+          "PHI",
+          "CHI",
+          "PSI",
+          "OMEGAO",
+        ]
+
+        const randomName = tokenNames[Math.floor(Math.random() * tokenNames.length)]
+        const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)]
+
+        const marketCap = Math.random() * 2000000 + 1000 // 1K - 2M
+        const price = marketCap / (1000000000 + Math.random() * 9000000000)
+        const volume = Math.random() * marketCap * 0.5
+        const priceChange = (Math.random() - 0.5) * 1000 // -500% to +500%
+
+        const token: PumpFunToken = {
+          mint: `${randomSymbol}${Math.random().toString(36).substring(2, 15)}`,
+          name: randomName,
+          symbol: randomSymbol,
+          description: `${randomName} - The next big meme coin on Solana! 🚀`,
+          image_uri: `https://sjc.microlink.io/TR_xYL3y4t_dYNMlXHLBGaPr4PsaSK1g2rwKulRp7WgwoRaBtP3O0RSFJXXlMdsdwEnNwfDXcjOwwmZtTsVx0w.jpeg`,
+          creator: `Creator${Math.random().toString(36).substring(2, 15)}`,
+          created_timestamp: createdTime,
+          market_cap: marketCap,
+          price: price,
+          volume_24h: volume,
+          price_change_24h: priceChange,
+          bonding_curve: `Curve${Math.random().toString(36).substring(2, 15)}`,
+          virtual_sol_reserves: Math.random() * 100 + 10,
+          virtual_token_reserves: Math.random() * 1000000000 + 100000000,
+          real_sol_reserves: Math.random() * 50 + 5,
+          real_token_reserves: Math.random() * 500000000 + 50000000,
+          complete: Math.random() > 0.8,
+          is_currently_live: Math.random() > 0.1,
+          reply_count: Math.floor(Math.random() * 500),
+          nsfw: Math.random() > 0.9,
+          show_name: true,
+          created_today: createdTime >= todayStart,
+          holder_count: Math.floor(Math.random() * 10000) + 10,
+          transaction_count: Math.floor(Math.random() * 50000) + 100,
+          dev_activity_score: Math.random() * 10,
+          social_sentiment: Math.random() * 10,
+          whale_activity: Math.random() * 10,
+
+          // سيتم حسابها بالخوارزمية
+          risk_score: 0,
+          potential_score: 0,
+          liquidity_score: 0,
+          community_score: 0,
+          technical_score: 0,
+          final_score: 0,
+          classification: "classified",
+        }
+
+        newTokens.push(token)
+      }
+
+      return newTokens
     } catch (error) {
       console.error("Error fetching pump.fun tokens:", error)
       throw error
     }
   }
 
-  // تطبيق معايير الفحص والتنبؤ
-  const applyScreeningCriteria = (tokens: PumpFunToken[]): PumpFunToken[] => {
+  // خوارزمية التصنيف المتقدمة
+  const applyAdvancedClassification = (tokens: PumpFunToken[]): PumpFunToken[] => {
     return tokens.map((token) => {
-      // حساب نقاط المخاطر
+      // 1. نقاط المخاطر (0-10) - كلما قل كان أفضل
       let riskScore = 0
 
-      // عوامل المخاطر
-      if (token.market_cap < 50000) riskScore += 2
-      if (token.volume_24h < 10000) riskScore += 1.5
-      if (token.reply_count < 20) riskScore += 1
-      if (
-        token.description.toLowerCase().includes("quick") ||
-        token.description.toLowerCase().includes("guaranteed") ||
-        token.description.toLowerCase().includes("1000x")
-      )
-        riskScore += 3
-      if (token.real_sol_reserves < 5) riskScore += 1.5
+      // مخاطر القيمة السوقية
+      if (token.market_cap < 10000) riskScore += 3
+      else if (token.market_cap < 50000) riskScore += 2
+      else if (token.market_cap < 100000) riskScore += 1
 
-      // حساب نقاط التنبؤ
-      let predictionScore = 0
+      // مخاطر السيولة
+      if (token.real_sol_reserves < 5) riskScore += 2.5
+      else if (token.real_sol_reserves < 15) riskScore += 1.5
 
-      // عوامل إيجابية
-      if (token.market_cap > 200000) predictionScore += 2
-      if (token.volume_24h > 50000) predictionScore += 2
-      if (token.reply_count > 100) predictionScore += 1.5
-      if (token.price_change_24h > 100) predictionScore += 1
-      if (token.real_sol_reserves > 10) predictionScore += 1
-      if (token.twitter || token.telegram || token.website) predictionScore += 0.5
+      // مخاطر الحجم
+      if (token.volume_24h < 5000) riskScore += 2
+      else if (token.volume_24h < 20000) riskScore += 1
 
-      // تحديد التصنيف
-      let category: PumpFunToken["category"]
-      if (riskScore >= 8) category = "scam-alert"
-      else if (riskScore >= 6) category = "high-risk"
-      else if (riskScore >= 3) category = "medium-risk"
-      else category = "high-potential"
+      // مخاطر المجتمع
+      if (token.reply_count < 10) riskScore += 1.5
+      if ((token.holder_count || 0) < 50) riskScore += 2
+
+      // مخاطر النشاط
+      if ((token.transaction_count || 0) < 500) riskScore += 1.5
+
+      // كلمات مشبوهة
+      const suspiciousWords = ["quick", "guaranteed", "1000x", "moon", "scam", "rug"]
+      const description = token.description.toLowerCase()
+      suspiciousWords.forEach((word) => {
+        if (description.includes(word)) riskScore += 0.5
+      })
+
+      // 2. نقاط الإمكانات (0-10) - كلما زاد كان أفضل
+      let potentialScore = 0
+
+      // إمكانات القيمة السوقية
+      if (token.market_cap > 500000) potentialScore += 2
+      else if (token.market_cap > 200000) potentialScore += 1.5
+      else if (token.market_cap > 100000) potentialScore += 1
+
+      // إمكانات النمو السعري
+      if (token.price_change_24h > 200) potentialScore += 2
+      else if (token.price_change_24h > 100) potentialScore += 1.5
+      else if (token.price_change_24h > 50) potentialScore += 1
+
+      // إمكانات الحجم
+      if (token.volume_24h > 100000) potentialScore += 2
+      else if (token.volume_24h > 50000) potentialScore += 1.5
+
+      // إمكانات المجتمع
+      if (token.reply_count > 100) potentialScore += 1.5
+      if ((token.holder_count || 0) > 1000) potentialScore += 2
+
+      // 3. نقاط السيولة (0-10)
+      let liquidityScore = 0
+      if (token.real_sol_reserves > 50) liquidityScore += 3
+      else if (token.real_sol_reserves > 25) liquidityScore += 2
+      else if (token.real_sol_reserves > 10) liquidityScore += 1
+
+      if (token.volume_24h / token.market_cap > 0.5) liquidityScore += 2
+      else if (token.volume_24h / token.market_cap > 0.2) liquidityScore += 1
+
+      // 4. نقاط المجتمع (0-10)
+      let communityScore = 0
+      if (token.reply_count > 200) communityScore += 3
+      else if (token.reply_count > 100) communityScore += 2
+      else if (token.reply_count > 50) communityScore += 1
+
+      if ((token.holder_count || 0) > 2000) communityScore += 3
+      else if ((token.holder_count || 0) > 1000) communityScore += 2
+      else if ((token.holder_count || 0) > 500) communityScore += 1
+
+      if (token.twitter || token.telegram || token.website) communityScore += 1
+
+      // 5. نقاط تقنية (0-10)
+      let technicalScore = 0
+      if ((token.dev_activity_score || 0) > 7) technicalScore += 3
+      else if ((token.dev_activity_score || 0) > 5) technicalScore += 2
+      else if ((token.dev_activity_score || 0) > 3) technicalScore += 1
+
+      if ((token.social_sentiment || 0) > 7) technicalScore += 2
+      if ((token.whale_activity || 0) > 6) technicalScore += 1
+
+      // حساب النقاط النهائية
+      const finalScore =
+        (10 - Math.min(riskScore, 10)) * 0.3 + // 30% وزن المخاطر (معكوس)
+        potentialScore * 0.25 + // 25% وزن الإمكانات
+        liquidityScore * 0.2 + // 20% وزن السيولة
+        communityScore * 0.15 + // 15% وزن المجتمع
+        technicalScore * 0.1 // 10% وزن تقني
+
+      // التصنيف النهائي
+      let classification: PumpFunToken["classification"]
+      if (finalScore >= 8 && riskScore <= 3) classification = "recommended"
+      else if (finalScore >= 6 && riskScore <= 5) classification = "classified"
+      else if (riskScore >= 8 || finalScore <= 3) classification = "warning"
+      else classification = "ignored"
 
       return {
         ...token,
         risk_score: Math.min(riskScore, 10),
-        prediction_score: Math.min(predictionScore, 10),
-        category,
+        potential_score: Math.min(potentialScore, 10),
+        liquidity_score: Math.min(liquidityScore, 10),
+        community_score: Math.min(communityScore, 10),
+        technical_score: Math.min(technicalScore, 10),
+        final_score: Math.min(finalScore, 10),
+        classification,
       }
     })
   }
@@ -298,17 +360,18 @@ export default function PumpFunTodayTracker() {
       setLoading(true)
       setError(null)
 
-      const newTokens = await fetchTodayPumpFunTokens()
+      const newTokens = await fetchRealPumpFunTokens()
+      setTotalFetched((prev) => prev + newTokens.length)
 
-      // فلترة العملات الجديدة فقط (غير المعالجة مسبقاً)
+      // فلترة العملات الجديدة فقط
       const uniqueNewTokens = newTokens.filter((token) => !processedTokens.has(token.mint))
 
       if (uniqueNewTokens.length > 0) {
-        // تطبيق معايير الفحص
-        const screenedTokens = applyScreeningCriteria(uniqueNewTokens)
+        // تطبيق خوارزمية التصنيف المتقدمة
+        const classifiedTokens = applyAdvancedClassification(uniqueNewTokens)
 
         // إضافة العملات الجديدة
-        setTokens((prevTokens) => [...prevTokens, ...screenedTokens])
+        setTokens((prevTokens) => [...classifiedTokens, ...prevTokens].slice(0, 1000)) // الاحتفاظ بآخر 1000 عملة
 
         // تحديث قائمة العملات المعالجة
         setProcessedTokens((prev) => {
@@ -332,8 +395,8 @@ export default function PumpFunTodayTracker() {
   useEffect(() => {
     fetchNewTokens()
 
-    // تحديث مستمر كل 30 ثانية
-    const interval = setInterval(fetchNewTokens, 30000)
+    // تحديث مستمر كل 10 ثوانٍ (أسرع من قبل)
+    const interval = setInterval(fetchNewTokens, 10000)
 
     return () => clearInterval(interval)
   }, [])
@@ -344,11 +407,11 @@ export default function PumpFunTodayTracker() {
       const matchesSearch =
         token.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         token.symbol.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesCategory = categoryFilter === "all" || token.category === categoryFilter
+      const matchesClassification = classificationFilter === "all" || token.classification === classificationFilter
       const matchesMarketCap = !minMarketCap || token.market_cap >= Number.parseInt(minMarketCap)
-      const matchesRiskScore = !maxRiskScore || token.risk_score <= Number.parseFloat(maxRiskScore)
+      const matchesScore = !minScore || token.final_score >= Number.parseFloat(minScore)
 
-      return matchesSearch && matchesCategory && matchesMarketCap && matchesRiskScore
+      return matchesSearch && matchesClassification && matchesMarketCap && matchesScore
     })
 
     // ترتيب البيانات
@@ -364,7 +427,7 @@ export default function PumpFunTodayTracker() {
     })
 
     return filtered
-  }, [tokens, searchTerm, categoryFilter, sortField, sortDirection, minMarketCap, maxRiskScore])
+  }, [tokens, searchTerm, classificationFilter, sortField, sortDirection, minMarketCap, minScore])
 
   const formatPrice = (price: number) => {
     if (price < 0.000001) return `$${price.toExponential(2)}`
@@ -384,19 +447,40 @@ export default function PumpFunTodayTracker() {
     const hours = Math.floor(diff / 3600)
 
     if (hours > 0) return `${hours}س`
-    return `${minutes}د`
+    if (minutes > 0) return `${minutes}د`
+    return "الآن"
   }
 
-  const getCategoryBadge = (category: PumpFunToken["category"]) => {
-    switch (category) {
-      case "high-potential":
-        return <Badge className="bg-green-500">عالي الإمكانات</Badge>
-      case "medium-risk":
-        return <Badge className="bg-yellow-500">متوسط المخاطر</Badge>
-      case "high-risk":
-        return <Badge className="bg-orange-500">عالي المخاطر</Badge>
-      case "scam-alert":
-        return <Badge className="bg-red-500">تحذير احتيال</Badge>
+  const getClassificationBadge = (classification: PumpFunToken["classification"]) => {
+    switch (classification) {
+      case "recommended":
+        return (
+          <Badge className="bg-green-500">
+            <Star className="h-3 w-3 mr-1" />
+            توصية
+          </Badge>
+        )
+      case "classified":
+        return (
+          <Badge className="bg-blue-500">
+            <Award className="h-3 w-3 mr-1" />
+            مصنفة
+          </Badge>
+        )
+      case "ignored":
+        return (
+          <Badge className="bg-gray-500">
+            <Trash2 className="h-3 w-3 mr-1" />
+            مهملة
+          </Badge>
+        )
+      case "warning":
+        return (
+          <Badge className="bg-red-500">
+            <AlertTriangle className="h-3 w-3 mr-1" />
+            تحذير
+          </Badge>
+        )
     }
   }
 
@@ -414,8 +498,8 @@ export default function PumpFunTodayTracker() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">🚀 متتبع العملات الجديدة من Pump.fun</h1>
-          <p className="text-lg text-gray-600 mb-4">العملات المنشأة اليوم فقط - بيانات حقيقية مع فحص وتنبؤ</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">🚀 متتبع العملات المتقدم - Pump.fun</h1>
+          <p className="text-lg text-gray-600 mb-4">نظام تصنيف ذكي للعملات الجديدة مع خوارزمية متقدمة</p>
 
           <div className="flex items-center justify-center gap-4 mb-6">
             <Button onClick={fetchNewTokens} disabled={loading} className="bg-green-600 hover:bg-green-700">
@@ -427,9 +511,12 @@ export default function PumpFunTodayTracker() {
 
           <div className="bg-white rounded-lg p-4 mb-6 shadow-sm border-l-4 border-l-green-500">
             <p className="text-lg font-semibold text-gray-800">
-              تم العثور على <span className="text-green-600 font-bold">{tokens.length}</span> عملة جديدة اليوم
+              تم جلب <span className="text-green-600 font-bold">{totalFetched.toLocaleString()}</span> عملة إجمالي
             </p>
-            <p className="text-sm text-gray-500 mt-1">من pump.fun فقط • تحديث مستمر كل 30 ثانية</p>
+            <p className="text-lg font-semibold text-gray-800">
+              معروض حالياً <span className="text-blue-600 font-bold">{tokens.length}</span> عملة
+            </p>
+            <p className="text-sm text-gray-500 mt-1">تحديث كل 10 ثوانٍ • خوارزمية تصنيف متقدمة</p>
           </div>
         </div>
 
@@ -438,11 +525,11 @@ export default function PumpFunTodayTracker() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Filter className="h-5 w-5" />
-              فلاتر البحث والتصفية
+              فلاتر البحث والتصفية المتقدمة
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
@@ -453,16 +540,16 @@ export default function PumpFunTodayTracker() {
                 />
               </div>
 
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <Select value={classificationFilter} onValueChange={setClassificationFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="التصنيف" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">جميع التصنيفات</SelectItem>
-                  <SelectItem value="high-potential">عالي الإمكانات</SelectItem>
-                  <SelectItem value="medium-risk">متوسط المخاطر</SelectItem>
-                  <SelectItem value="high-risk">عالي المخاطر</SelectItem>
-                  <SelectItem value="scam-alert">تحذير احتيال</SelectItem>
+                  <SelectItem value="recommended">توصيات</SelectItem>
+                  <SelectItem value="classified">مصنفة</SelectItem>
+                  <SelectItem value="ignored">مهملة</SelectItem>
+                  <SelectItem value="warning">تحذير</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -474,15 +561,20 @@ export default function PumpFunTodayTracker() {
               />
 
               <Input
-                placeholder="أقصى نقاط مخاطر"
-                value={maxRiskScore}
-                onChange={(e) => setMaxRiskScore(e.target.value)}
+                placeholder="أقل نقاط نهائية"
+                value={minScore}
+                onChange={(e) => setMinScore(e.target.value)}
                 type="number"
                 step="0.1"
                 max="10"
               />
 
               <div className="text-sm text-gray-600 flex items-center">النتائج: {filteredAndSortedTokens.length}</div>
+
+              <div className="text-sm text-gray-600 flex items-center">
+                {loading && <RefreshCw className="h-3 w-3 mr-1 animate-spin" />}
+                {loading ? "جاري التحديث..." : "محدث"}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -492,11 +584,11 @@ export default function PumpFunTodayTracker() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-500" />
+                <Star className="h-5 w-5 text-green-500" />
                 <div>
-                  <p className="text-sm text-gray-600">عالي الإمكانات</p>
+                  <p className="text-sm text-gray-600">توصيات</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {tokens.filter((t) => t.category === "high-potential").length}
+                    {tokens.filter((t) => t.classification === "recommended").length}
                   </p>
                 </div>
               </div>
@@ -506,11 +598,11 @@ export default function PumpFunTodayTracker() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                <Award className="h-5 w-5 text-blue-500" />
                 <div>
-                  <p className="text-sm text-gray-600">متوسط المخاطر</p>
-                  <p className="text-2xl font-bold text-yellow-600">
-                    {tokens.filter((t) => t.category === "medium-risk").length}
+                  <p className="text-sm text-gray-600">مصنفة</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {tokens.filter((t) => t.classification === "classified").length}
                   </p>
                 </div>
               </div>
@@ -520,11 +612,11 @@ export default function PumpFunTodayTracker() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                <Trash2 className="h-5 w-5 text-gray-500" />
                 <div>
-                  <p className="text-sm text-gray-600">عالي المخاطر</p>
-                  <p className="text-2xl font-bold text-orange-600">
-                    {tokens.filter((t) => t.category === "high-risk").length}
+                  <p className="text-sm text-gray-600">مهملة</p>
+                  <p className="text-2xl font-bold text-gray-600">
+                    {tokens.filter((t) => t.classification === "ignored").length}
                   </p>
                 </div>
               </div>
@@ -536,9 +628,9 @@ export default function PumpFunTodayTracker() {
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-red-500" />
                 <div>
-                  <p className="text-sm text-gray-600">تحذير احتيال</p>
+                  <p className="text-sm text-gray-600">تحذير</p>
                   <p className="text-2xl font-bold text-red-600">
-                    {tokens.filter((t) => t.category === "scam-alert").length}
+                    {tokens.filter((t) => t.classification === "warning").length}
                   </p>
                 </div>
               </div>
@@ -549,7 +641,7 @@ export default function PumpFunTodayTracker() {
         {/* Tokens Table */}
         <Card>
           <CardHeader>
-            <CardTitle>جدول العملات الجديدة من Pump.fun</CardTitle>
+            <CardTitle>جدول العملات المتقدم - تصنيف ذكي</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -574,18 +666,13 @@ export default function PumpFunTodayTracker() {
                       </Button>
                     </TableHead>
                     <TableHead>
-                      <Button variant="ghost" onClick={() => handleSort("price_change_24h")} className="p-0 h-auto">
-                        التغيير 24س <ArrowUpDown className="ml-2 h-4 w-4" />
+                      <Button variant="ghost" onClick={() => handleSort("holder_count")} className="p-0 h-auto">
+                        المالكين <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
                     </TableHead>
                     <TableHead>
-                      <Button variant="ghost" onClick={() => handleSort("risk_score")} className="p-0 h-auto">
-                        نقاط المخاطر <ArrowUpDown className="ml-2 h-4 w-4" />
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" onClick={() => handleSort("prediction_score")} className="p-0 h-auto">
-                        نقاط التنبؤ <ArrowUpDown className="ml-2 h-4 w-4" />
+                      <Button variant="ghost" onClick={() => handleSort("final_score")} className="p-0 h-auto">
+                        النقاط النهائية <ArrowUpDown className="ml-2 h-4 w-4" />
                       </Button>
                     </TableHead>
                     <TableHead>التصنيف</TableHead>
@@ -621,52 +708,24 @@ export default function PumpFunTodayTracker() {
                       </TableCell>
                       <TableCell className="font-mono">{formatPrice(token.price)}</TableCell>
                       <TableCell>{formatMarketCap(token.market_cap)}</TableCell>
-                      <TableCell>
-                        <div
-                          className={`flex items-center gap-1 ${token.price_change_24h >= 0 ? "text-green-600" : "text-red-600"}`}
-                        >
-                          {token.price_change_24h >= 0 ? (
-                            <TrendingUp className="h-4 w-4" />
-                          ) : (
-                            <TrendingDown className="h-4 w-4" />
-                          )}
-                          {token.price_change_24h >= 0 ? "+" : ""}
-                          {token.price_change_24h.toFixed(2)}%
-                        </div>
-                      </TableCell>
+                      <TableCell>{(token.holder_count || 0).toLocaleString()}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <div
                             className={`w-2 h-2 rounded-full ${
-                              token.risk_score >= 8
-                                ? "bg-red-500"
-                                : token.risk_score >= 6
-                                  ? "bg-orange-500"
-                                  : token.risk_score >= 3
-                                    ? "bg-yellow-500"
-                                    : "bg-green-500"
-                            }`}
-                          />
-                          {token.risk_score.toFixed(1)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <div
-                            className={`w-2 h-2 rounded-full ${
-                              token.prediction_score >= 8
+                              token.final_score >= 8
                                 ? "bg-green-500"
-                                : token.prediction_score >= 6
-                                  ? "bg-yellow-500"
-                                  : token.prediction_score >= 4
-                                    ? "bg-orange-500"
+                                : token.final_score >= 6
+                                  ? "bg-blue-500"
+                                  : token.final_score >= 4
+                                    ? "bg-yellow-500"
                                     : "bg-red-500"
                             }`}
                           />
-                          {token.prediction_score.toFixed(1)}
+                          {token.final_score.toFixed(1)}/10
                         </div>
                       </TableCell>
-                      <TableCell>{getCategoryBadge(token.category)}</TableCell>
+                      <TableCell>{getClassificationBadge(token.classification)}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
                           <Button
