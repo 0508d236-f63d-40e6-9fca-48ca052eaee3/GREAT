@@ -1,6 +1,6 @@
 {
-  "name": "pump-fun-tracker",
-  "version": "0.1.0",
+  "name": "great-idea-tracker",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@radix-ui/react-select": "latest",
+    "@solana/spl-token": "^0.3.9",
+    "@solana/web3.js": "latest",
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",

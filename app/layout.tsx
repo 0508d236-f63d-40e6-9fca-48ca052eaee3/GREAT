@@ -6,9 +6,9 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "متتبع العملات الجديدة من Pump.fun",
-  description: "تتبع العملات المشفرة الجديدة المنشأة اليوم على منصة pump.fun مع البيانات المباشرة",
-  keywords: "pump.fun, عملات جديدة, عملات مشفرة, solana, meme coins, العملات اليوم",
+  title: "GREAT IDEA - متتبع العملات الذكي",
+  description: "نظام ذكي متقدم لتتبع وتحليل العملات المشفرة الجديدة من pump.fun مع خوارزمية فحص متطورة وذكاء اصطناعي",
+  keywords: "GREAT IDEA, pump.fun, عملات جديدة, ذكاء اصطناعي, تحليل العملات, تعلم الآلة",
     generator: 'v0.dev'
 }
 
@@ -20,7 +20,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl">
       <head>
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href="/logo.svg" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#10b981" />
       </head>
