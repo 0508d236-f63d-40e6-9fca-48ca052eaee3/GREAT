@@ -1,94 +1,144 @@
+// تحديث API لاستخدام النظام المحسن
 import { type NextRequest, NextResponse } from "next/server"
-import { pumpFunAPI } from "@/lib/pump-fun-api"
+import { enhancedDataFetcher } from "@/lib/enhanced-data-fetcher"
 import { advancedAnalyzer } from "@/lib/advanced-analysis"
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const limit = Number.parseInt(searchParams.get("limit") || "50")
-    const offset = Number.parseInt(searchParams.get("offset") || "0")
+    const testSources = searchParams.get("test") === "true"
 
-    console.log(`Fetching ${limit} tokens with offset ${offset}...`)
+    console.log("🚀 Starting enhanced multi-source data fetch...")
 
-    // جلب العملات الجديدة من pump.fun مع معالجة الأخطاء
-    let tokens
-    try {
-      tokens = await pumpFunAPI.getNewTokens(limit, offset)
-      console.log(`Successfully fetched ${tokens.length} tokens`)
-    } catch (error) {
-      console.error("Error fetching tokens from pump.fun:", error)
-      // في حالة فشل الـ API، نستخدم بيانات احتياطية
-      tokens = []
-    }
-
-    if (tokens.length === 0) {
-      console.log("No tokens fetched, API might be down")
+    // إذا كان طلب اختبار المصادر
+    if (testSources) {
+      const sourceStatus = await enhancedDataFetcher.checkAllSourcesStatus()
       return NextResponse.json({
         success: true,
-        data: [],
-        total: 0,
-        message: "No new tokens found or API temporarily unavailable",
+        sourceStatus,
+        message: `Tested ${sourceStatus.totalSources} sources, ${sourceStatus.workingSources} working`,
         timestamp: new Date().toISOString(),
       })
     }
 
-    // تطبيق التحليل المتقدم على كل عملة
+    // جلب البيانات من المصادر المتعددة
+    const fetchResult = await enhancedDataFetcher.fetchTodayTokens()
+
+    console.log(`📊 Fetch Result:`, {
+      tokensFound: fetchResult.tokens.length,
+      isReal: fetchResult.isReal,
+      sources: fetchResult.successfulSources,
+      attempts: fetchResult.totalAttempts,
+    })
+
+    if (fetchResult.tokens.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: [],
+        total: 0,
+        fetchResult,
+        message: "❌ No tokens found from any source",
+        warning: "⚠️ All data sources returned empty results",
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    // تحليل العملات
+    console.log(`🧠 Analyzing ${fetchResult.tokens.length} tokens...`)
     const analyzedTokens = await Promise.allSettled(
-      tokens.map(async (token) => {
+      fetchResult.tokens.slice(0, limit).map(async (token) => {
         try {
-          return await advancedAnalyzer.analyzeToken(token)
+          const analyzed = await advancedAnalyzer.analyzeToken(token)
+          return {
+            ...analyzed,
+            _dataSource: token._dataSource,
+            _isVerified: token._isVerified,
+          }
         } catch (error) {
           console.error(`Error analyzing token ${token.mint}:`, error)
-          // إرجاع العملة بتحليل أساسي في حالة فشل التحليل المتقدم
           return {
             ...token,
-            uniqueness_score: 10,
-            creator_history_score: 5,
-            creator_wallet_balance: 50000,
-            social_sentiment_score: 5,
-            celebrity_influence_score: 0,
-            purchase_velocity_score: 3,
-            ai_prediction_score: 5,
-            ml_learning_adjustment: 0,
-            final_percentage: 45,
+            final_percentage: 25,
             classification: "ignored" as const,
-            confidence_level: 50,
-            predicted_price_target: token.usd_market_cap * 1.5,
+            confidence_level: 25,
+            predicted_price_target: token.usd_market_cap * 1.2,
             predicted_timeframe: "غير محدد",
-            accuracy_score: 75,
-            holder_count: Math.floor(Math.random() * 1000) + 10,
-            transaction_count: Math.floor(Math.random() * 5000) + 50,
-            liquidity_score: 5,
-            risk_factors: ["بيانات محدودة"],
+            accuracy_score: 50,
+            holder_count: Math.floor(Math.random() * 500) + 10,
+            transaction_count: Math.floor(Math.random() * 1000) + 50,
+            liquidity_score: 3,
+            risk_factors: ["تحليل محدود"],
+            uniqueness_score: 5,
+            creator_history_score: 3,
+            creator_wallet_balance: 25000,
+            social_sentiment_score: 3,
+            celebrity_influence_score: 0,
+            purchase_velocity_score: 2,
+            ai_prediction_score: 3,
+            ml_learning_adjustment: 0,
           }
         }
       }),
     )
 
-    // فلترة النتائج الناجحة فقط
     const successfulAnalyses = analyzedTokens
       .filter((result): result is PromiseFulfilledResult<any> => result.status === "fulfilled")
       .map((result) => result.value)
 
-    // ترتيب حسب النقاط النهائية
+    // ترتيب حسب النقاط
     successfulAnalyses.sort((a, b) => b.final_percentage - a.final_percentage)
 
-    console.log(`Successfully analyzed ${successfulAnalyses.length} tokens`)
+    // إحصائيات مفصلة
+    const realTokens = successfulAnalyses.filter((t) => t._isVerified)
+    const simulatedTokens = successfulAnalyses.filter((t) => !t._isVerified)
 
-    return NextResponse.json({
+    const response = {
       success: true,
       data: successfulAnalyses,
       total: successfulAnalyses.length,
-      source: tokens.length > 0 ? "pump.fun API" : "fallback data",
+      fetchResult: {
+        source: fetchResult.source,
+        isReal: fetchResult.isReal,
+        totalAttempts: fetchResult.totalAttempts,
+        successfulSources: fetchResult.successfulSources,
+      },
+      statistics: {
+        realTokens: realTokens.length,
+        simulatedTokens: simulatedTokens.length,
+        dataQuality: fetchResult.isReal ? "real" : "enhanced-simulation",
+        sourcesUsed: fetchResult.successfulSources.length,
+        totalSourcesAttempted: fetchResult.totalAttempts,
+      },
+      status: {
+        isOnline: fetchResult.isReal,
+        dataSource: fetchResult.source,
+        tokensFound: fetchResult.tokens.length,
+        lastUpdate: new Date().toISOString(),
+      },
+      message: fetchResult.isReal
+        ? `✅ Found ${realTokens.length} real tokens from: ${fetchResult.source}`
+        : `⚠️ Using enhanced simulation data (${simulatedTokens.length} tokens)`,
+      warning: !fetchResult.isReal ? "⚠️ Real data sources unavailable - using enhanced simulation" : null,
       timestamp: new Date().toISOString(),
+    }
+
+    console.log("📤 Sending response:", {
+      totalTokens: response.data.length,
+      realTokens: response.statistics.realTokens,
+      simulatedTokens: response.statistics.simulatedTokens,
+      dataQuality: response.statistics.dataQuality,
     })
+
+    return NextResponse.json(response)
   } catch (error) {
-    console.error("Error in tokens API:", error)
+    console.error("❌ Critical error in enhanced tokens API:", error)
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to fetch and analyze tokens",
+        error: "Failed to fetch token data",
         message: error instanceof Error ? error.message : "Unknown error",
+        details: error instanceof Error ? error.stack : "No stack trace",
         timestamp: new Date().toISOString(),
       },
       { status: 500 },

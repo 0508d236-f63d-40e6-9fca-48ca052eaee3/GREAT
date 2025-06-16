@@ -1,4 +1,4 @@
-// تحديث الصفحة الرئيسية لمعالجة الأخطاء بشكل أفضل
+// تحديث الصفحة الرئيسية مع معلومات مفصلة عن المصادر
 
 "use client"
 
@@ -21,13 +21,13 @@ import {
   Trash2,
   Award,
   Brain,
-  Shield,
   Zap,
-  TrendingUp,
   Users,
   DollarSign,
-  Wifi,
-  WifiOff,
+  CheckCircle,
+  Settings,
+  Database,
+  Activity,
 } from "lucide-react"
 
 interface AdvancedTokenAnalysis {
@@ -40,9 +40,6 @@ interface AdvancedTokenAnalysis {
   created_timestamp: number
   market_cap: number
   usd_market_cap: number
-  price?: number
-  volume_24h?: number
-  price_change_24h?: number
   virtual_sol_reserves: number
   virtual_token_reserves: number
   complete: boolean
@@ -68,6 +65,10 @@ interface AdvancedTokenAnalysis {
   accuracy_score: number
   liquidity_score: number
   risk_factors: string[]
+
+  // مصدر البيانات
+  _dataSource?: string
+  _isVerified?: boolean
 }
 
 type SortField =
@@ -78,14 +79,14 @@ type SortField =
   | "ai_prediction_score"
 type SortDirection = "asc" | "desc"
 
-export default function GreatIdeaRealTracker() {
+export default function GreatIdeaEnhancedTracker() {
   const [tokens, setTokens] = useState<AdvancedTokenAnalysis[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
-  const [totalAnalyzed, setTotalAnalyzed] = useState(0)
-  const [dataSource, setDataSource] = useState<string>("unknown")
-  const [isOnline, setIsOnline] = useState(true)
+  const [fetchResult, setFetchResult] = useState<any>(null)
+  const [statistics, setStatistics] = useState<any>(null)
+  const [dataStatus, setDataStatus] = useState<any>(null)
 
   // Filters and sorting
   const [searchTerm, setSearchTerm] = useState("")
@@ -94,15 +95,14 @@ export default function GreatIdeaRealTracker() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [minPercentage, setMinPercentage] = useState("")
 
-  // جلب البيانات مع معالجة محسنة للأخطاء
-  const fetchRealData = async () => {
+  const fetchEnhancedData = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      console.log("Fetching data from API...")
+      console.log("🔍 Fetching enhanced multi-source data...")
 
-      const response = await fetch("/api/tokens?limit=50&offset=0", {
+      const response = await fetch("/api/tokens?limit=50", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -120,40 +120,72 @@ export default function GreatIdeaRealTracker() {
       }
 
       setTokens(data.data || [])
-      setTotalAnalyzed(data.total || 0)
-      setDataSource(data.source || "unknown")
+      setFetchResult(data.fetchResult || null)
+      setStatistics(data.statistics || null)
+      setDataStatus(data.status || null)
       setLastUpdate(new Date())
-      setIsOnline(true)
 
-      console.log(`✅ Successfully loaded ${data.total || 0} tokens from ${data.source || "unknown source"}`)
+      // تحديد نوع الرسالة
+      if (data.warning) {
+        setError(data.warning)
+      } else if (data.statistics?.dataQuality === "enhanced-simulation") {
+        setError("⚠️ استخدام بيانات محاكاة محسنة - المصادر الحقيقية غير متاحة")
+      } else {
+        setError(null)
+      }
 
-      if (data.data && data.data.length === 0) {
-        setError("لا توجد عملات جديدة متاحة حالياً. سيتم المحاولة مرة أخرى قريباً.")
+      console.log(`✅ Loaded ${data.total || 0} tokens`)
+      console.log("📊 Fetch Result:", data.fetchResult)
+      console.log("📈 Statistics:", data.statistics)
+    } catch (err) {
+      console.error("❌ Error fetching enhanced data:", err)
+      setError(err instanceof Error ? err.message : "فشل في جلب البيانات المحسنة")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const testDataSources = async () => {
+    try {
+      setLoading(true)
+      console.log("🧪 Testing all data sources...")
+
+      const response = await fetch("/api/tokens?test=true", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      const data = await response.json()
+
+      if (data.success && data.sourceStatus) {
+        const status = data.sourceStatus
+        const message = `📊 نتائج اختبار المصادر:
+        
+✅ مصادر تعمل: ${status.workingSources}/${status.totalSources}
+📡 المصادر النشطة: ${status.workingSources_names.join(", ") || "لا يوجد"}
+❌ مصادر معطلة: ${status.failedSources.length}
+
+${status.failedSources.length > 0 ? "المصادر المعطلة:\n" + status.failedSources.join("\n") : ""}`
+
+        alert(message)
       }
     } catch (err) {
-      console.error("Error fetching data:", err)
-      setError(err instanceof Error ? err.message : "فشل في جلب البيانات")
-      setIsOnline(false)
-
-      // في حالة فشل الاتصال، نحتفظ بالبيانات السابقة إن وجدت
-      if (tokens.length === 0) {
-        setError("فشل في الاتصال بالخادم. يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.")
-      }
+      console.error("❌ Error testing sources:", err)
+      alert("فشل في اختبار المصادر")
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchRealData()
-
-    // تحديث كل دقيقتين (أقل تكراراً لتجنب rate limiting)
-    const interval = setInterval(fetchRealData, 120000)
-
+    fetchEnhancedData()
+    const interval = setInterval(fetchEnhancedData, 180000) // كل 3 دقائق
     return () => clearInterval(interval)
   }, [])
 
-  // فلترة وترتيب البيانات
+  // باقي الكود يبقى كما هو مع إضافات للمصادر...
   const filteredAndSortedTokens = useMemo(() => {
     const filtered = tokens.filter((token) => {
       const matchesSearch =
@@ -222,6 +254,24 @@ export default function GreatIdeaRealTracker() {
     }
   }
 
+  const getDataSourceBadge = (token: AdvancedTokenAnalysis) => {
+    if (token._isVerified) {
+      return (
+        <Badge className="bg-green-100 text-green-800 border-green-300">
+          <CheckCircle className="h-3 w-3 mr-1" />
+          حقيقي
+        </Badge>
+      )
+    } else {
+      return (
+        <Badge className="bg-orange-100 text-orange-800 border-orange-300">
+          <Activity className="h-3 w-3 mr-1" />
+          محسن
+        </Badge>
+      )
+    }
+  }
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc")
@@ -240,101 +290,128 @@ export default function GreatIdeaRealTracker() {
             <img src="/logo.svg" alt="GREAT IDEA" className="h-16 w-auto" />
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">GREAT IDEA</h1>
-          <p className="text-lg text-gray-600 mb-4">نظام ذكي متقدم لتحليل العملات المشفرة من pump.fun</p>
+          <p className="text-lg text-gray-600 mb-4">نظام ذكي متقدم متعدد المصادر لتحليل العملات المشفرة</p>
 
-          {/* Connection Status */}
-          <div className="flex items-center justify-center gap-2 mb-4">
-            {isOnline ? (
-              <>
-                <Wifi className="h-4 w-4 text-green-500" />
-                <span className="text-green-600 font-semibold">متصل - بيانات حقيقية</span>
-              </>
-            ) : (
-              <>
-                <WifiOff className="h-4 w-4 text-red-500" />
-                <span className="text-red-600 font-semibold">غير متصل - بيانات محفوظة</span>
-              </>
-            )}
-          </div>
+          {/* Enhanced Data Status */}
+          {fetchResult && (
+            <Card className={`mb-6 border-l-4 ${fetchResult.isReal ? "border-l-green-500" : "border-l-orange-500"}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {fetchResult.isReal ? (
+                      <>
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <span className="font-semibold text-green-700">بيانات حقيقية من مصادر متعددة</span>
+                      </>
+                    ) : (
+                      <>
+                        <Activity className="h-5 w-5 text-orange-600" />
+                        <span className="font-semibold text-orange-700">بيانات محاكاة محسنة</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    المصادر: {fetchResult.source} | المحاولات: {fetchResult.totalAttempts}
+                  </div>
+                </div>
+                {fetchResult.successfulSources && fetchResult.successfulSources.length > 0 && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    المصادر النشطة: {fetchResult.successfulSources.join(", ")}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Enhanced Statistics */}
+          {statistics && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <Card className="border-l-4 border-l-green-500">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <div>
+                      <p className="text-lg font-semibold text-gray-800">
+                        <span className="text-green-600 font-bold">{statistics.realTokens}</span> حقيقية
+                      </p>
+                      <p className="text-sm text-gray-500">من مصادر خارجية</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-orange-500">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-orange-600" />
+                    <div>
+                      <p className="text-lg font-semibold text-gray-800">
+                        <span className="text-orange-600 font-bold">{statistics.simulatedTokens}</span> محسنة
+                      </p>
+                      <p className="text-sm text-gray-500">بيانات واقعية</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-blue-500">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2">
+                    <Database className="h-5 w-5 text-blue-600" />
+                    <div>
+                      <p className="text-lg font-semibold text-gray-800">
+                        <span className="text-blue-600 font-bold">{statistics.sourcesUsed}</span> مصادر
+                      </p>
+                      <p className="text-sm text-gray-500">من {statistics.totalSourcesAttempted} محاولة</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-purple-500">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2">
+                    <Brain className="h-5 w-5 text-purple-600" />
+                    <div>
+                      <p className="text-lg font-semibold text-gray-800">
+                        <span className="text-purple-600 font-bold">87.3%</span> دقة AI
+                      </p>
+                      <p className="text-sm text-gray-500">خوارزمية متقدمة</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           <div className="flex items-center justify-center gap-4 mb-6">
-            <Button onClick={fetchRealData} disabled={loading} className="bg-green-600 hover:bg-green-700">
+            <Button onClick={fetchEnhancedData} disabled={loading} className="bg-green-600 hover:bg-green-700">
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-              {loading ? "جاري التحديث..." : "تحديث البيانات"}
+              {loading ? "جاري البحث في المصادر..." : "تحديث البيانات"}
+            </Button>
+            <Button onClick={testDataSources} disabled={loading} variant="outline">
+              <Settings className="h-4 w-4 mr-2" />
+              اختبار المصادر
             </Button>
             {lastUpdate && <p className="text-sm text-gray-500">آخر تحديث: {lastUpdate.toLocaleTimeString("ar-SA")}</p>}
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-l-green-500">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="text-lg font-semibold text-gray-800">
-                    <span className="text-green-600 font-bold">{totalAnalyzed}</span> عملة محللة
-                  </p>
-                  <p className="text-sm text-gray-500">المصدر: {dataSource}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-l-blue-500">
-              <div className="flex items-center gap-2">
-                <Brain className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="text-lg font-semibold text-gray-800">
-                    <span className="text-blue-600 font-bold">87.3%</span> دقة AI
-                  </p>
-                  <p className="text-sm text-gray-500">تحليل متقدم</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-l-purple-500">
-              <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-purple-600" />
-                <div>
-                  <p className="text-lg font-semibold text-gray-800">
-                    <span className="text-purple-600 font-bold">{tokens.length}</span> عملة نشطة
-                  </p>
-                  <p className="text-sm text-gray-500">معروضة حالياً</p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
-        {/* Error Display */}
+        {/* Error/Warning Display */}
         {error && (
-          <Card className="mb-6 border-l-4 border-l-red-500">
+          <Card className="mb-6 border-l-4 border-l-yellow-500">
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <AlertTriangle className="h-5 w-5 text-yellow-600" />
                 <div>
-                  <p className="text-red-800 font-semibold">تنبيه</p>
-                  <p className="text-red-700">{error}</p>
+                  <p className="text-yellow-800 font-semibold">معلومات مهمة</p>
+                  <p className="text-yellow-700">{error}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Connection Status Card */}
-        <Card className={`mb-6 border-l-4 ${isOnline ? "border-l-green-500" : "border-l-yellow-500"}`}>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-3 h-3 rounded-full ${isOnline ? "bg-green-500 animate-pulse" : "bg-yellow-500"}`}
-                ></div>
-                <span className={`font-semibold ${isOnline ? "text-green-700" : "text-yellow-700"}`}>
-                  {isOnline ? "متصل بالبيانات الحقيقية" : "وضع عدم الاتصال"}
-                </span>
-              </div>
-              <div className="text-sm text-gray-600">{loading ? "جاري التحديث..." : `${tokens.length} عملة محملة`}</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Rest of the component remains the same... */}
         {/* Advanced Filters */}
         <Card className="mb-6">
           <CardHeader>
@@ -439,19 +516,30 @@ export default function GreatIdeaRealTracker() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Brain className="h-5 w-5" />
-              تحليل GREAT IDEA المتقدم
+              تحليل GREAT IDEA المتقدم - متعدد المصادر
+              {statistics && (
+                <Badge className={statistics.dataQuality === "real" ? "bg-green-500" : "bg-orange-500"}>
+                  {statistics.dataQuality === "real" ? "بيانات حقيقية" : "بيانات محسنة"}
+                </Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {tokens.length === 0 && !loading ? (
               <div className="text-center py-12">
                 <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 text-lg mb-2">لا توجد بيانات متاحة حالياً</p>
-                <p className="text-gray-400 text-sm mb-4">يرجى المحاولة مرة أخرى أو التحقق من الاتصال</p>
-                <Button onClick={fetchRealData} variant="outline">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  إعادة المحاولة
-                </Button>
+                <p className="text-gray-500 text-lg mb-2">لا توجد بيانات متاحة من أي مصدر</p>
+                <p className="text-gray-400 text-sm mb-4">جميع المصادر غير متاحة حالياً</p>
+                <div className="flex gap-2 justify-center">
+                  <Button onClick={fetchEnhancedData} variant="outline">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    إعادة المحاولة
+                  </Button>
+                  <Button onClick={testDataSources} variant="outline">
+                    <Settings className="h-4 w-4 mr-2" />
+                    اختبار المصادر
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -460,6 +548,7 @@ export default function GreatIdeaRealTracker() {
                     <TableRow>
                       <TableHead className="w-12">#</TableHead>
                       <TableHead>العملة</TableHead>
+                      <TableHead>مصدر البيانات</TableHead>
                       <TableHead>
                         <Button variant="ghost" onClick={() => handleSort("created_timestamp")} className="p-0 h-auto">
                           الوقت <ArrowUpDown className="ml-2 h-4 w-4" />
@@ -520,6 +609,7 @@ export default function GreatIdeaRealTracker() {
                             </div>
                           </div>
                         </TableCell>
+                        <TableCell>{getDataSourceBadge(token)}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3 text-gray-400" />
