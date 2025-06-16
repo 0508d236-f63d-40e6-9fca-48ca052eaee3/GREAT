@@ -1,44 +1,11 @@
 {
-  "version": 2,
-  "name": "great-crypto-tracker",
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate, max-age=0"
-        },
-        {
-          "key": "Pragma",
-          "value": "no-cache"
-        },
-        {
-          "key": "Expires",
-          "value": "0"
-        }
-      ]
-    }
-  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "out",
+  "framework": "nextjs",
+  "regions": ["iad1"],
   "functions": {
-    "app/api/**/*.ts": {
+    "app/**/*.tsx": {
       "runtime": "nodejs18.x"
     }
-  },
-  "framework": "nextjs",
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
-  "regions": ["iad1"]
+  }
 }

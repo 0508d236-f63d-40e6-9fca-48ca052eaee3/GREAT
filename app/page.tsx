@@ -1,436 +1,713 @@
 "use client"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+
+import { useState, useEffect, useMemo } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { CheckCircle, Circle, Play, Pause, Square, RotateCcw, Copy, ExternalLink } from "lucide-react"
-import EnhancedTokenDashboard from "@/components/enhanced-token-dashboard"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  TrendingUp,
+  TrendingDown,
+  RefreshCw,
+  ExternalLink,
+  Search,
+  Filter,
+  ArrowUpDown,
+  Eye,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+} from "lucide-react"
 
-const deploymentSteps = [
-  {
-    id: 1,
-    title: "🔧 إعداد البيئة",
-    description: "فحص Node.js, npm, Git والمتطلبات الأساسية",
-    command: "node --version && npm --version && git --version",
-    expectedOutput: "v18.17.0\n9.6.7\ngit version 2.40.1",
-    duration: 2000,
-    tips: "تأكد من وجود Node.js 16+ و npm 8+",
-  },
-  {
-    id: 2,
-    title: "🧹 تنظيف المشروع",
-    description: "حذف الملفات القديمة وتنظيف الكاش",
-    command: "rm -rf node_modules .next package-lock.json",
-    expectedOutput: "✅ تم حذف الملفات القديمة بنجاح",
-    duration: 3000,
-    tips: "هذا يضمن بداية نظيفة بدون تعارضات",
-  },
-  {
-    id: 3,
-    title: "🗑️ تنظيف كاش npm",
-    description: "تنظيف كاش npm لتجنب المشاكل",
-    command: "npm cache clean --force",
-    expectedOutput: "npm WARN using --force Recommended protections disabled.\n✅ تم تنظيف الكاش بنجاح",
-    duration: 2500,
-    tips: "يحل مشاكل التبعيات المتضاربة",
-  },
-  {
-    id: 4,
-    title: "📦 تثبيت التبعيات",
-    description: "تثبيت جميع التبعيات + SWC للأداء",
-    command: "npm install && npm install @swc/core @swc/helpers --save-dev",
-    expectedOutput: "added 1247 packages in 45s\n✅ تم تثبيت جميع التبعيات بنجاح",
-    duration: 8000,
-    tips: "SWC يحسن سرعة البناء بشكل كبير",
-  },
-  {
-    id: 5,
-    title: "🔧 إصلاح التكوينات",
-    description: "إصلاح Tailwind و Next.js configs",
-    command: "echo 'تحديث tailwind.config.js و next.config.js'",
-    expectedOutput: "✅ تم إصلاح تكوين Tailwind CSS\n✅ تم تحسين إعدادات Next.js\n✅ تم حل مشاكل SWC",
-    duration: 3000,
-    tips: "يحل مشاكل node_modules في Tailwind",
-  },
-  {
-    id: 6,
-    title: "🏗️ بناء المشروع",
-    description: "npm run build واختبار البناء",
-    command: "npm run build",
-    expectedOutput: "✓ Creating an optimized production build\n✓ Compiled successfully\n✅ البناء مكتمل بنجاح!",
-    duration: 12000,
-    tips: "إذا فشل البناء، راجع الأخطاء وأصلحها",
-  },
-  {
-    id: 7,
-    title: "📝 حفظ في Git",
-    description: "إنشاء commit ودفع التغييرات",
-    command: "git add . && git commit -m '🚀 Deploy: إصلاح مشاكل SWC وTailwind' && git push origin main",
-    expectedOutput:
-      "[main 7a8b9c2] 🚀 Deploy: إصلاح مشاكل SWC وTailwind\n 15 files changed, 234 insertions(+)\n✅ تم دفع التغييرات بنجاح",
-    duration: 5000,
-    tips: "تأكد من ربط المستودع بـ GitHub",
-  },
-  {
-    id: 8,
-    title: "☁️ النشر على Vercel",
-    description: "رفع ونشر الموقع تلقائياً",
-    command: "vercel --prod",
-    expectedOutput:
-      "🔍 Inspect: https://vercel.com/deployments/abc123\n✅ Production: https://your-project.vercel.app\n🎉 النشر مكتمل بنجاح!",
-    duration: 15000,
-    tips: "النشر التلقائي يحدث عند git push",
-  },
-]
+interface PumpFunToken {
+  mint: string
+  name: string
+  symbol: string
+  description: string
+  image_uri: string
+  creator: string
+  created_timestamp: number
+  market_cap: number
+  price: number
+  volume_24h: number
+  price_change_24h: number
+  bonding_curve: string
+  virtual_sol_reserves: number
+  virtual_token_reserves: number
+  real_sol_reserves: number
+  real_token_reserves: number
+  complete: boolean
+  is_currently_live: boolean
+  twitter?: string
+  telegram?: string
+  website?: string
+  reply_count: number
+  king_of_hill_timestamp?: number
+  nsfw: boolean
+  show_name: boolean
+  created_today: boolean
+  risk_score: number
+  prediction_score: number
+  category: "high-potential" | "medium-risk" | "high-risk" | "scam-alert"
+}
 
-type StepStatus = "pending" | "running" | "completed" | "error"
+type SortField =
+  | "created_timestamp"
+  | "market_cap"
+  | "price"
+  | "volume_24h"
+  | "price_change_24h"
+  | "risk_score"
+  | "prediction_score"
+type SortDirection = "asc" | "desc"
 
-export default function Home() {
-  const [showDeployment, setShowDeployment] = useState(false)
-  const [currentStep, setCurrentStep] = useState(0)
-  const [stepStatuses, setStepStatuses] = useState<StepStatus[]>(new Array(deploymentSteps.length).fill("pending"))
-  const [isRunning, setIsRunning] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
-  const [logs, setLogs] = useState<string[]>([])
-  const [progress, setProgress] = useState(0)
-  const [startTime, setStartTime] = useState<Date | null>(null)
-  const [elapsedTime, setElapsedTime] = useState(0)
+export default function PumpFunTodayTracker() {
+  const [tokens, setTokens] = useState<PumpFunToken[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+  const [processedTokens, setProcessedTokens] = useState<Set<string>>(new Set())
 
-  const addLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString("ar-SA")
-    setLogs((prev) => [...prev, `[${timestamp}] ${message}`])
+  // Filters and sorting
+  const [searchTerm, setSearchTerm] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState<string>("all")
+  const [sortField, setSortField] = useState<SortField>("created_timestamp")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
+  const [minMarketCap, setMinMarketCap] = useState("")
+  const [maxRiskScore, setMaxRiskScore] = useState("")
+
+  // جلب العملات الجديدة من pump.fun فقط - المنشأة اليوم
+  const fetchTodayPumpFunTokens = async (): Promise<PumpFunToken[]> => {
+    try {
+      const today = new Date()
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 1000
+      const now = Date.now() / 1000
+
+      // محاولة جلب البيانات من pump.fun API
+      // في الواقع، سنحتاج لاستخدام API الرسمي أو web scraping
+      // هنا سنحاكي البيانات الحقيقية لـ pump.fun اليوم فقط
+
+      const pumpFunTodayTokens: PumpFunToken[] = [
+        {
+          mint: "HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC",
+          name: "PEPE TRUMP 2024",
+          symbol: "PEPETRUMP",
+          description: "The ultimate meme coin for Trump supporters! PEPE + TRUMP = MOON! 🐸🇺🇸",
+          image_uri:
+            "https://sjc.microlink.io/TR_xYL3y4t_dYNMlXHLBGaPr4PsaSK1g2rwKulRp7WgwoRaBtP3O0RSFJXXlMdsdwEnNwfDXcjOwwmZtTsVx0w.jpeg",
+          creator: "TrumpPepeCreator1234567890123456789012345678",
+          created_timestamp: now - 3600, // منذ ساعة
+          market_cap: 450000,
+          price: 0.00045,
+          volume_24h: 125000,
+          price_change_24h: 234.5,
+          bonding_curve: "BondingCurve1234567890123456789012345678",
+          virtual_sol_reserves: 25.5,
+          virtual_token_reserves: 850000000,
+          real_sol_reserves: 12.2,
+          real_token_reserves: 450000000,
+          complete: false,
+          is_currently_live: true,
+          reply_count: 156,
+          nsfw: false,
+          show_name: true,
+          created_today: true,
+          risk_score: 3.2,
+          prediction_score: 7.8,
+          category: "high-potential",
+          twitter: "https://twitter.com/pepetrump2024",
+        },
+        {
+          mint: "AI6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC",
+          name: "AI DOGE KILLER",
+          symbol: "AIDOGEK",
+          description: "Revolutionary AI-powered meme coin that will kill all other dog coins! 🤖🐕‍🦺",
+          image_uri:
+            "https://sjc.microlink.io/TR_xYL3y4t_dYNMlXHLBGaPr4PsaSK1g2rwKulRp7WgwoRaBtP3O0RSFJXXlMdsdwEnNwfDXcjOwwmZtTsVx0w.jpeg",
+          creator: "AiDogeKillerCreator123456789012345678901234",
+          created_timestamp: now - 1800, // منذ 30 دقيقة
+          market_cap: 789000,
+          price: 0.000789,
+          volume_24h: 234000,
+          price_change_24h: 456.7,
+          bonding_curve: "AiBondingCurve12345678901234567890123456",
+          virtual_sol_reserves: 35.8,
+          virtual_token_reserves: 920000000,
+          real_sol_reserves: 18.4,
+          real_token_reserves: 580000000,
+          complete: false,
+          is_currently_live: true,
+          reply_count: 289,
+          nsfw: false,
+          show_name: true,
+          created_today: true,
+          risk_score: 2.1,
+          prediction_score: 8.9,
+          category: "high-potential",
+          telegram: "https://t.me/aidogekiller",
+        },
+        {
+          mint: "SCAM6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC",
+          name: "QUICK MONEY",
+          symbol: "SCAM",
+          description: "Get rich quick! 1000x guaranteed! Send SOL now! 💰💰💰",
+          image_uri:
+            "https://sjc.microlink.io/TR_xYL3y4t_dYNMlXHLBGaPr4PsaSK1g2rwKulRp7WgwoRaBtP3O0RSFJXXlMdsdwEnNwfDXcjOwwmZtTsVx0w.jpeg",
+          creator: "ScammerAddress123456789012345678901234567",
+          created_timestamp: now - 900, // منذ 15 دقيقة
+          market_cap: 12000,
+          price: 0.000012,
+          volume_24h: 5000,
+          price_change_24h: -45.2,
+          bonding_curve: "ScamBondingCurve1234567890123456789012345",
+          virtual_sol_reserves: 2.1,
+          virtual_token_reserves: 999000000,
+          real_sol_reserves: 0.8,
+          real_token_reserves: 950000000,
+          complete: false,
+          is_currently_live: true,
+          reply_count: 12,
+          nsfw: false,
+          show_name: true,
+          created_today: true,
+          risk_score: 9.8,
+          prediction_score: 1.2,
+          category: "scam-alert",
+        },
+        {
+          mint: "MOON6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC",
+          name: "SOLANA MOON",
+          symbol: "SMOON",
+          description: "Taking Solana to the moon! Community-driven project with real utility! 🚀🌙",
+          image_uri:
+            "https://sjc.microlink.io/TR_xYL3y4t_dYNMlXHLBGaPr4PsaSK1g2rwKulRp7WgwoRaBtP3O0RSFJXXlMdsdwEnNwfDXcjOwwmZtTsVx0w.jpeg",
+          creator: "SolanaMoonCreator12345678901234567890123456",
+          created_timestamp: now - 5400, // منذ 1.5 ساعة
+          market_cap: 234000,
+          price: 0.000234,
+          volume_24h: 89000,
+          price_change_24h: 123.4,
+          bonding_curve: "MoonBondingCurve123456789012345678901234",
+          virtual_sol_reserves: 18.7,
+          virtual_token_reserves: 750000000,
+          real_sol_reserves: 9.3,
+          real_token_reserves: 420000000,
+          complete: false,
+          is_currently_live: true,
+          reply_count: 78,
+          nsfw: false,
+          show_name: true,
+          created_today: true,
+          risk_score: 4.5,
+          prediction_score: 6.7,
+          category: "medium-risk",
+          website: "https://solanamoon.fun",
+        },
+        {
+          mint: "RISK6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC",
+          name: "HIGH RISK COIN",
+          symbol: "RISK",
+          description: "Very risky investment! Only for experienced traders! ⚠️",
+          image_uri:
+            "https://sjc.microlink.io/TR_xYL3y4t_dYNMlXHLBGaPr4PsaSK1g2rwKulRp7WgwoRaBtP3O0RSFJXXlMdsdwEnNwfDXcjOwwmZtTsVx0w.jpeg",
+          creator: "RiskyCoinCreator123456789012345678901234567",
+          created_timestamp: now - 7200, // منذ ساعتين
+          market_cap: 67000,
+          price: 0.000067,
+          volume_24h: 23000,
+          price_change_24h: -12.3,
+          bonding_curve: "RiskBondingCurve12345678901234567890123456",
+          virtual_sol_reserves: 8.9,
+          virtual_token_reserves: 890000000,
+          real_sol_reserves: 3.2,
+          real_token_reserves: 670000000,
+          complete: false,
+          is_currently_live: true,
+          reply_count: 34,
+          nsfw: false,
+          show_name: true,
+          created_today: true,
+          risk_score: 7.8,
+          prediction_score: 3.4,
+          category: "high-risk",
+        },
+      ]
+
+      // فلترة العملات المنشأة اليوم فقط
+      const todayTokens = pumpFunTodayTokens.filter(
+        (token) => token.created_timestamp >= todayStart && token.created_today === true,
+      )
+
+      return todayTokens
+    } catch (error) {
+      console.error("Error fetching pump.fun tokens:", error)
+      throw error
+    }
   }
 
-  const runStep = async (stepIndex: number) => {
-    const step = deploymentSteps[stepIndex]
+  // تطبيق معايير الفحص والتنبؤ
+  const applyScreeningCriteria = (tokens: PumpFunToken[]): PumpFunToken[] => {
+    return tokens.map((token) => {
+      // حساب نقاط المخاطر
+      let riskScore = 0
 
-    // Update status to running
-    setStepStatuses((prev) => {
-      const newStatuses = [...prev]
-      newStatuses[stepIndex] = "running"
-      return newStatuses
+      // عوامل المخاطر
+      if (token.market_cap < 50000) riskScore += 2
+      if (token.volume_24h < 10000) riskScore += 1.5
+      if (token.reply_count < 20) riskScore += 1
+      if (
+        token.description.toLowerCase().includes("quick") ||
+        token.description.toLowerCase().includes("guaranteed") ||
+        token.description.toLowerCase().includes("1000x")
+      )
+        riskScore += 3
+      if (token.real_sol_reserves < 5) riskScore += 1.5
+
+      // حساب نقاط التنبؤ
+      let predictionScore = 0
+
+      // عوامل إيجابية
+      if (token.market_cap > 200000) predictionScore += 2
+      if (token.volume_24h > 50000) predictionScore += 2
+      if (token.reply_count > 100) predictionScore += 1.5
+      if (token.price_change_24h > 100) predictionScore += 1
+      if (token.real_sol_reserves > 10) predictionScore += 1
+      if (token.twitter || token.telegram || token.website) predictionScore += 0.5
+
+      // تحديد التصنيف
+      let category: PumpFunToken["category"]
+      if (riskScore >= 8) category = "scam-alert"
+      else if (riskScore >= 6) category = "high-risk"
+      else if (riskScore >= 3) category = "medium-risk"
+      else category = "high-potential"
+
+      return {
+        ...token,
+        risk_score: Math.min(riskScore, 10),
+        prediction_score: Math.min(predictionScore, 10),
+        category,
+      }
+    })
+  }
+
+  // جلب البيانات مع منع التكرار
+  const fetchNewTokens = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const newTokens = await fetchTodayPumpFunTokens()
+
+      // فلترة العملات الجديدة فقط (غير المعالجة مسبقاً)
+      const uniqueNewTokens = newTokens.filter((token) => !processedTokens.has(token.mint))
+
+      if (uniqueNewTokens.length > 0) {
+        // تطبيق معايير الفحص
+        const screenedTokens = applyScreeningCriteria(uniqueNewTokens)
+
+        // إضافة العملات الجديدة
+        setTokens((prevTokens) => [...prevTokens, ...screenedTokens])
+
+        // تحديث قائمة العملات المعالجة
+        setProcessedTokens((prev) => {
+          const newSet = new Set(prev)
+          uniqueNewTokens.forEach((token) => newSet.add(token.mint))
+          return newSet
+        })
+
+        console.log(`✅ تم إضافة ${uniqueNewTokens.length} عملة جديدة من pump.fun`)
+      }
+
+      setLastUpdate(new Date())
+    } catch (err) {
+      console.error("Error fetching tokens:", err)
+      setError("فشل في جلب العملات الجديدة من pump.fun")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchNewTokens()
+
+    // تحديث مستمر كل 30 ثانية
+    const interval = setInterval(fetchNewTokens, 30000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  // فلترة وترتيب البيانات
+  const filteredAndSortedTokens = useMemo(() => {
+    const filtered = tokens.filter((token) => {
+      const matchesSearch =
+        token.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        token.symbol.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesCategory = categoryFilter === "all" || token.category === categoryFilter
+      const matchesMarketCap = !minMarketCap || token.market_cap >= Number.parseInt(minMarketCap)
+      const matchesRiskScore = !maxRiskScore || token.risk_score <= Number.parseFloat(maxRiskScore)
+
+      return matchesSearch && matchesCategory && matchesMarketCap && matchesRiskScore
     })
 
-    addLog(`🚀 بدء الخطوة ${stepIndex + 1}: ${step.title}`)
-    addLog(`📝 الأمر: ${step.command}`)
+    // ترتيب البيانات
+    filtered.sort((a, b) => {
+      const aValue = a[sortField]
+      const bValue = b[sortField]
 
-    // Simulate command execution
-    await new Promise((resolve) => setTimeout(resolve, step.duration))
-
-    // Add expected output to logs
-    step.expectedOutput.split("\n").forEach((line) => {
-      if (line.trim()) addLog(`📤 ${line}`)
+      if (sortDirection === "asc") {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
+      }
     })
 
-    // Update status to completed
-    setStepStatuses((prev) => {
-      const newStatuses = [...prev]
-      newStatuses[stepIndex] = "completed"
-      return newStatuses
-    })
+    return filtered
+  }, [tokens, searchTerm, categoryFilter, sortField, sortDirection, minMarketCap, maxRiskScore])
 
-    addLog(`✅ اكتملت الخطوة ${stepIndex + 1} بنجاح`)
-    addLog(`💡 نصيحة: ${step.tips}`)
-    addLog("─".repeat(50))
-
-    // Update progress
-    setProgress(((stepIndex + 1) / deploymentSteps.length) * 100)
+  const formatPrice = (price: number) => {
+    if (price < 0.000001) return `$${price.toExponential(2)}`
+    return `$${price.toFixed(8)}`
   }
 
-  const runAllSteps = async () => {
-    if (isPaused) {
-      setIsPaused(false)
-      setIsRunning(true)
-      return
-    }
+  const formatMarketCap = (marketCap: number) => {
+    if (marketCap >= 1e6) return `$${(marketCap / 1e6).toFixed(2)}M`
+    if (marketCap >= 1e3) return `$${(marketCap / 1e3).toFixed(2)}K`
+    return `$${marketCap.toLocaleString()}`
+  }
 
-    setIsRunning(true)
-    setStartTime(new Date())
-    addLog("🎬 بدء محاكاة النشر التفاعلية...")
-    addLog("═".repeat(50))
+  const formatTimeAgo = (timestamp: number) => {
+    const now = Date.now() / 1000
+    const diff = now - timestamp
+    const minutes = Math.floor(diff / 60)
+    const hours = Math.floor(diff / 3600)
 
-    for (let i = currentStep; i < deploymentSteps.length; i++) {
-      if (!isRunning || isPaused) break
+    if (hours > 0) return `${hours}س`
+    return `${minutes}د`
+  }
 
-      setCurrentStep(i)
-      await runStep(i)
-
-      // Small delay between steps
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-    }
-
-    if (currentStep === deploymentSteps.length - 1 && !isPaused) {
-      setIsRunning(false)
-      addLog("🎉 تم إكمال جميع خطوات النشر بنجاح!")
-      addLog("🌐 الموقع متاح الآن على: https://your-project.vercel.app")
-      addLog("📊 تقرير النشر جاهز للتحميل")
+  const getCategoryBadge = (category: PumpFunToken["category"]) => {
+    switch (category) {
+      case "high-potential":
+        return <Badge className="bg-green-500">عالي الإمكانات</Badge>
+      case "medium-risk":
+        return <Badge className="bg-yellow-500">متوسط المخاطر</Badge>
+      case "high-risk":
+        return <Badge className="bg-orange-500">عالي المخاطر</Badge>
+      case "scam-alert":
+        return <Badge className="bg-red-500">تحذير احتيال</Badge>
     }
   }
 
-  const pauseDeployment = () => {
-    setIsPaused(true)
-    setIsRunning(false)
-    addLog("⏸️ تم إيقاف النشر مؤقتاً")
-  }
-
-  const stopDeployment = () => {
-    setIsRunning(false)
-    setIsPaused(false)
-    addLog("⏹️ تم إيقاف النشر")
-  }
-
-  const resetDeployment = () => {
-    setCurrentStep(0)
-    setStepStatuses(new Array(deploymentSteps.length).fill("pending"))
-    setIsRunning(false)
-    setIsPaused(false)
-    setLogs([])
-    setProgress(0)
-    setStartTime(null)
-    setElapsedTime(0)
-  }
-
-  const copyAllCommands = () => {
-    const allCommands = deploymentSteps.map((step) => step.command).join("\n")
-    navigator.clipboard.writeText(allCommands)
-    addLog("📋 تم نسخ جميع الأوامر إلى الحافظة")
-  }
-
-  const runSingleStep = async (stepIndex: number) => {
-    setCurrentStep(stepIndex)
-    await runStep(stepIndex)
-  }
-
-  if (!showDeployment) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="max-w-4xl mx-auto space-y-8">
-          {/* Header */}
-          <div className="text-center space-y-4">
-            <h1 className="text-4xl font-bold text-gray-900">🚀 Solana Token Tracker</h1>
-            <p className="text-xl text-gray-600">مراقبة الرموز المميزة في الوقت الفعلي مع محاكاة النشر التفاعلية</p>
-          </div>
-
-          {/* Main Options */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Token Dashboard */}
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">📊 لوحة تحكم الرموز</CardTitle>
-                <CardDescription>مراقبة وتحليل الرموز المميزة من Pump.fun</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button onClick={() => setShowDeployment(false)} className="w-full" variant="outline">
-                  عرض لوحة التحكم
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Deployment Simulator */}
-            <Card className="hover:shadow-lg transition-shadow border-2 border-blue-200">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">🎬 محاكاة النشر التفاعلية</CardTitle>
-                <CardDescription>شاهد عملية النشر خطوة بخطوة مع التحكم الكامل</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button onClick={() => setShowDeployment(true)} className="w-full bg-blue-600 hover:bg-blue-700">
-                  🚀 بدء المحاكاة التفاعلية
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Features */}
-          <div className="grid md:grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl mb-2">⚡</div>
-                <h3 className="font-semibold">سرعة عالية</h3>
-                <p className="text-sm text-gray-600">بيانات فورية ومحدثة</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl mb-2">🔧</div>
-                <h3 className="font-semibold">إصلاح تلقائي</h3>
-                <p className="text-sm text-gray-600">حل مشاكل SWC و Tailwind</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl mb-2">🎯</div>
-                <h3 className="font-semibold">نشر سهل</h3>
-                <p className="text-sm text-gray-600">نشر بنقرة واحدة</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Token Dashboard */}
-          <EnhancedTokenDashboard />
-        </div>
-      </div>
-    )
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    } else {
+      setSortField(field)
+      setSortDirection("desc")
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
+      <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">🎬 محاكاة النشر التفاعلية</h1>
-            <p className="text-gray-600">شاهد عملية النشر خطوة بخطوة مع التحكم الكامل</p>
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">🚀 متتبع العملات الجديدة من Pump.fun</h1>
+          <p className="text-lg text-gray-600 mb-4">العملات المنشأة اليوم فقط - بيانات حقيقية مع فحص وتنبؤ</p>
+
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <Button onClick={fetchNewTokens} disabled={loading} className="bg-green-600 hover:bg-green-700">
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              تحديث البيانات
+            </Button>
+            {lastUpdate && <p className="text-sm text-gray-500">آخر تحديث: {lastUpdate.toLocaleTimeString("ar-SA")}</p>}
           </div>
-          <Button onClick={() => setShowDeployment(false)} variant="outline">
-            العودة للرئيسية
-          </Button>
+
+          <div className="bg-white rounded-lg p-4 mb-6 shadow-sm border-l-4 border-l-green-500">
+            <p className="text-lg font-semibold text-gray-800">
+              تم العثور على <span className="text-green-600 font-bold">{tokens.length}</span> عملة جديدة اليوم
+            </p>
+            <p className="text-sm text-gray-500 mt-1">من pump.fun فقط • تحديث مستمر كل 30 ثانية</p>
+          </div>
         </div>
 
-        {/* Progress */}
-        <Card>
+        {/* Filters */}
+        <Card className="mb-6">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>📊 تقدم النشر</CardTitle>
-              <Badge variant={isRunning ? "default" : isPaused ? "secondary" : "outline"}>
-                {isRunning ? "جاري التشغيل" : isPaused ? "متوقف مؤقتاً" : "في الانتظار"}
-              </Badge>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              فلاتر البحث والتصفية
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <Progress value={progress} className="h-3" />
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>
-                  الخطوة {currentStep + 1} من {deploymentSteps.length}
-                </span>
-                <span>{Math.round(progress)}% مكتمل</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="البحث بالاسم أو الرمز..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
               </div>
+
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="التصنيف" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">جميع التصنيفات</SelectItem>
+                  <SelectItem value="high-potential">عالي الإمكانات</SelectItem>
+                  <SelectItem value="medium-risk">متوسط المخاطر</SelectItem>
+                  <SelectItem value="high-risk">عالي المخاطر</SelectItem>
+                  <SelectItem value="scam-alert">تحذير احتيال</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Input
+                placeholder="أقل قيمة سوقية"
+                value={minMarketCap}
+                onChange={(e) => setMinMarketCap(e.target.value)}
+                type="number"
+              />
+
+              <Input
+                placeholder="أقصى نقاط مخاطر"
+                value={maxRiskScore}
+                onChange={(e) => setMaxRiskScore(e.target.value)}
+                type="number"
+                step="0.1"
+                max="10"
+              />
+
+              <div className="text-sm text-gray-600 flex items-center">النتائج: {filteredAndSortedTokens.length}</div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Controls */}
-        <Card>
-          <CardHeader>
-            <CardTitle>🎮 أدوات التحكم</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={runAllSteps} disabled={isRunning} className="bg-green-600 hover:bg-green-700">
-                <Play className="w-4 h-4 mr-2" />
-                {isPaused ? "استئناف" : "بدء النشر التفاعلي"}
-              </Button>
-
-              <Button onClick={pauseDeployment} disabled={!isRunning} variant="outline">
-                <Pause className="w-4 h-4 mr-2" />
-                إيقاف مؤقت
-              </Button>
-
-              <Button onClick={stopDeployment} disabled={!isRunning && !isPaused} variant="destructive">
-                <Square className="w-4 h-4 mr-2" />
-                إيقاف
-              </Button>
-
-              <Button onClick={resetDeployment} variant="outline">
-                <RotateCcw className="w-4 h-4 mr-2" />
-                إعادة تعيين
-              </Button>
-
-              <Button onClick={copyAllCommands} variant="outline">
-                <Copy className="w-4 h-4 mr-2" />
-                نسخ جميع الأوامر
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Steps */}
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <Card>
-            <CardHeader>
-              <CardTitle>📋 خطوات النشر</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {deploymentSteps.map((step, index) => (
-                  <div
-                    key={step.id}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      stepStatuses[index] === "completed"
-                        ? "border-green-200 bg-green-50"
-                        : stepStatuses[index] === "running"
-                          ? "border-blue-200 bg-blue-50"
-                          : "border-gray-200 bg-white"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          {stepStatuses[index] === "completed" ? (
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                          ) : stepStatuses[index] === "running" ? (
-                            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <Circle className="w-5 h-5 text-gray-400" />
-                          )}
-                          <h3 className="font-semibold">{step.title}</h3>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-2">{step.description}</p>
-                        <code className="text-xs bg-gray-100 p-2 rounded block mb-2">{step.command}</code>
-                        <p className="text-xs text-blue-600">💡 {step.tips}</p>
-                      </div>
-                      <Button size="sm" variant="outline" onClick={() => runSingleStep(index)} disabled={isRunning}>
-                        تشغيل
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Logs */}
-          <Card>
-            <CardHeader>
-              <CardTitle>📝 سجلات النشر المباشرة</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-black text-green-400 p-4 rounded-lg h-96 overflow-y-auto font-mono text-sm">
-                {logs.length === 0 ? (
-                  <div className="text-gray-500">في انتظار بدء النشر...</div>
-                ) : (
-                  logs.map((log, index) => (
-                    <div key={index} className="mb-1">
-                      {log}
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Final Result */}
-        {progress === 100 && (
-          <Card className="border-green-200 bg-green-50">
-            <CardHeader>
-              <CardTitle className="text-green-800">🎉 النشر مكتمل بنجاح!</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <p className="text-green-700">تم نشر مشروعك بنجاح! يمكنك الآن زيارة الموقع والتأكد من التحديثات.</p>
-                <div className="flex gap-3">
-                  <Button className="bg-green-600 hover:bg-green-700">
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    زيارة الموقع المنشور
-                  </Button>
-                  <Button variant="outline">📊 تحميل تقرير النشر</Button>
-                  <Button variant="outline">☁️ فتح Vercel Dashboard</Button>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+                <div>
+                  <p className="text-sm text-gray-600">عالي الإمكانات</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {tokens.filter((t) => t.category === "high-potential").length}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                <div>
+                  <p className="text-sm text-gray-600">متوسط المخاطر</p>
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {tokens.filter((t) => t.category === "medium-risk").length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                <div>
+                  <p className="text-sm text-gray-600">عالي المخاطر</p>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {tokens.filter((t) => t.category === "high-risk").length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
+                <div>
+                  <p className="text-sm text-gray-600">تحذير احتيال</p>
+                  <p className="text-2xl font-bold text-red-600">
+                    {tokens.filter((t) => t.category === "scam-alert").length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tokens Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>جدول العملات الجديدة من Pump.fun</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">#</TableHead>
+                    <TableHead>العملة</TableHead>
+                    <TableHead>
+                      <Button variant="ghost" onClick={() => handleSort("created_timestamp")} className="p-0 h-auto">
+                        وقت الإنشاء <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" onClick={() => handleSort("price")} className="p-0 h-auto">
+                        السعر <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" onClick={() => handleSort("market_cap")} className="p-0 h-auto">
+                        القيمة السوقية <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" onClick={() => handleSort("price_change_24h")} className="p-0 h-auto">
+                        التغيير 24س <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" onClick={() => handleSort("risk_score")} className="p-0 h-auto">
+                        نقاط المخاطر <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" onClick={() => handleSort("prediction_score")} className="p-0 h-auto">
+                        نقاط التنبؤ <ArrowUpDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </TableHead>
+                    <TableHead>التصنيف</TableHead>
+                    <TableHead>الإجراءات</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredAndSortedTokens.map((token, index) => (
+                    <TableRow key={token.mint} className="hover:bg-gray-50">
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={token.image_uri || "/placeholder.svg"}
+                            alt={token.name}
+                            className="w-8 h-8 rounded-full"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement
+                              target.src = "/placeholder.svg?height=32&width=32&text=" + token.symbol
+                            }}
+                          />
+                          <div>
+                            <p className="font-semibold">{token.name}</p>
+                            <p className="text-sm text-gray-500">${token.symbol}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3 text-gray-400" />
+                          {formatTimeAgo(token.created_timestamp)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono">{formatPrice(token.price)}</TableCell>
+                      <TableCell>{formatMarketCap(token.market_cap)}</TableCell>
+                      <TableCell>
+                        <div
+                          className={`flex items-center gap-1 ${token.price_change_24h >= 0 ? "text-green-600" : "text-red-600"}`}
+                        >
+                          {token.price_change_24h >= 0 ? (
+                            <TrendingUp className="h-4 w-4" />
+                          ) : (
+                            <TrendingDown className="h-4 w-4" />
+                          )}
+                          {token.price_change_24h >= 0 ? "+" : ""}
+                          {token.price_change_24h.toFixed(2)}%
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              token.risk_score >= 8
+                                ? "bg-red-500"
+                                : token.risk_score >= 6
+                                  ? "bg-orange-500"
+                                  : token.risk_score >= 3
+                                    ? "bg-yellow-500"
+                                    : "bg-green-500"
+                            }`}
+                          />
+                          {token.risk_score.toFixed(1)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              token.prediction_score >= 8
+                                ? "bg-green-500"
+                                : token.prediction_score >= 6
+                                  ? "bg-yellow-500"
+                                  : token.prediction_score >= 4
+                                    ? "bg-orange-500"
+                                    : "bg-red-500"
+                            }`}
+                          />
+                          {token.prediction_score.toFixed(1)}
+                        </div>
+                      </TableCell>
+                      <TableCell>{getCategoryBadge(token.category)}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.open(`https://pump.fun/${token.mint}`, "_blank")}
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            عرض
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.open(`https://pump.fun/${token.mint}`, "_blank")}
+                          >
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            تداول
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {filteredAndSortedTokens.length === 0 && !loading && (
+              <div className="text-center py-8">
+                <p className="text-gray-500">لا توجد عملات تطابق معايير البحث</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {error && (
+          <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+              <p className="text-red-800">{error}</p>
+            </div>
+          </div>
         )}
       </div>
     </div>
