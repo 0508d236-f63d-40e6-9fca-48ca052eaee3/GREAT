@@ -11,7 +11,7 @@ const nextConfig = {
   },
   swcMinify: true,
   reactStrictMode: true,
-  // إزالة output: 'export' لأنه يسبب مشاكل مع Vercel
+  // إزالة جميع إعدادات output و trailingSlash
 }
 
 export default nextConfig
