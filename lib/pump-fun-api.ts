@@ -1,4 +1,4 @@
-// تحديث pump.fun API لتوليد عناوين Solana صحيحة
+// إعادة pump.fun API الأصلي مع تحسينات خفية للتأكد من pump.fun فقط
 export interface PumpFunToken {
   mint: string
   name: string
@@ -77,7 +77,6 @@ class PumpFunAPI {
     return this.validSolanaAddresses[Math.floor(Math.random() * this.validSolanaAddresses.length)]
   }
 
-  // باقي الكود يبقى كما هو مع تحديث generateRealisticFallbackData
   private getFromCache(key: string) {
     const cached = this.cache.get(key)
     if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
@@ -102,7 +101,7 @@ class PumpFunAPI {
     return fetch(url, options)
   }
 
-  // مصادر بيانات متعددة للموثوقية
+  // مصادر بيانات متعددة للموثوقية مع التركيز على pump.fun
   private dataSources = [
     {
       name: "pump.fun-api",
@@ -115,10 +114,11 @@ class PumpFunAPI {
       },
     },
     {
-      name: "dexscreener",
-      url: "https://api.dexscreener.com/latest/dex/tokens",
+      name: "pump.fun-backup",
+      url: "https://api.pump.fun/coins",
       headers: {
         Accept: "application/json",
+        "User-Agent": "Mozilla/5.0 (compatible; PumpFunAPI/1.0)",
       },
     },
   ]
@@ -128,61 +128,48 @@ class PumpFunAPI {
     const cached = this.getFromCache(cacheKey)
     if (cached) return cached
 
-    // محاولة جلب البيانات من مصادر متعددة
+    // محاولة جلب البيانات من pump.fun مباشرة
     for (const source of this.dataSources) {
       try {
         console.log(`Trying to fetch from ${source.name}...`)
 
-        let response: Response
-        let data: any
-
-        if (source.name === "pump.fun-api") {
-          response = await this.rateLimitedFetch(
-            `${source.url}?offset=${offset}&limit=${limit}&sort=created_timestamp&order=DESC&includeNsfw=false`,
-            {
-              headers: source.headers,
-              method: "GET",
-            },
-          )
-        } else if (source.name === "dexscreener") {
-          response = await this.rateLimitedFetch(`${source.url}/So11111111111111111111111111111111111111112`, {
+        const response = await this.rateLimitedFetch(
+          `${source.url}?offset=${offset}&limit=${limit}&sort=created_timestamp&order=DESC&includeNsfw=false`,
+          {
             headers: source.headers,
             method: "GET",
-          })
-        } else {
-          continue
-        }
+          },
+        )
 
         if (!response.ok) {
           console.warn(`${source.name} returned ${response.status}: ${response.statusText}`)
           continue
         }
 
-        data = await response.json()
+        const data = await response.json()
+        const tokens: PumpFunToken[] = Array.isArray(data) ? data : data.coins || []
 
-        let tokens: PumpFunToken[]
+        if (tokens.length > 0) {
+          // فلترة للتأكد من أن العملات من pump.fun فقط
+          const pumpFunTokens = tokens.filter((token) => this.isPumpFunToken(token))
 
-        if (source.name === "pump.fun-api") {
-          tokens = Array.isArray(data) ? data : []
-        } else if (source.name === "dexscreener") {
-          tokens = this.convertDexScreenerData(data)
-        } else {
-          tokens = []
-        }
+          // فلترة العملات المنشأة اليوم
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const todayTimestamp = today.getTime() / 1000
 
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        const todayTimestamp = today.getTime() / 1000
+          const filteredTokens = pumpFunTokens.filter(
+            (token) =>
+              token.created_timestamp >= todayTimestamp &&
+              token.usd_market_cap <= 15000 &&
+              token.usd_market_cap >= 1000,
+          )
 
-        const filteredTokens = tokens.filter(
-          (token) =>
-            token.created_timestamp >= todayTimestamp && token.usd_market_cap <= 15000 && token.usd_market_cap >= 1000,
-        )
-
-        if (filteredTokens.length > 0) {
-          console.log(`✅ Successfully fetched ${filteredTokens.length} tokens from ${source.name}`)
-          this.setCache(cacheKey, filteredTokens)
-          return filteredTokens
+          if (filteredTokens.length > 0) {
+            console.log(`✅ Successfully fetched ${filteredTokens.length} pump.fun tokens from ${source.name}`)
+            this.setCache(cacheKey, filteredTokens)
+            return filteredTokens
+          }
         }
       } catch (error) {
         console.warn(`Error fetching from ${source.name}:`, error)
@@ -190,36 +177,27 @@ class PumpFunAPI {
       }
     }
 
-    console.log("All data sources failed, using realistic fallback data...")
+    console.log("All pump.fun sources failed, using realistic fallback data...")
     return this.generateRealisticFallbackData(limit)
   }
 
-  private convertDexScreenerData(data: any): PumpFunToken[] {
-    if (!data.pairs || !Array.isArray(data.pairs)) return []
+  // فحص للتأكد من أن العملة من pump.fun
+  private isPumpFunToken(token: any): boolean {
+    // فحص وجود الحقول الأساسية لـ pump.fun
+    const hasRequiredFields =
+      token.mint &&
+      token.bonding_curve &&
+      token.associated_bonding_curve &&
+      token.virtual_sol_reserves !== undefined &&
+      token.virtual_token_reserves !== undefined
 
-    return data.pairs.map((pair: any) => ({
-      mint: this.generateValidMint(),
-      name: pair.baseToken?.name || "Unknown Token",
-      symbol: pair.baseToken?.symbol || "UNKNOWN",
-      description: `${pair.baseToken?.name || "Token"} trading on ${pair.dexId}`,
-      image_uri:
-        pair.info?.imageUrl ||
-        "https://sjc.microlink.io/TR_xYL3y4t_dYNMlXHLBGaPr4PsaSK1g2rwKulRp7WgwoRaBtP3O0RSFJXXlMdsdwEnNwfDXcjOwwmZtTsVx0w.jpeg",
-      show_name: true,
-      created_timestamp: Date.now() / 1000 - Math.random() * 86400,
-      complete: false,
-      virtual_token_reserves: Number(pair.liquidity?.base || 0),
-      virtual_sol_reserves: Number(pair.liquidity?.quote || 0),
-      total_supply: 1000000000,
-      bonding_curve: this.generateValidBondingCurve(),
-      associated_bonding_curve: this.generateValidBondingCurve(),
-      creator: this.generateValidCreator(),
-      market_cap: Number(pair.fdv || 0),
-      reply_count: Math.floor(Math.random() * 100),
-      nsfw: false,
-      is_currently_live: true,
-      usd_market_cap: Number(pair.fdv || Math.random() * 15000 + 1000),
-    }))
+    // فحص أن العملة لها creator صحيح
+    const hasValidCreator = token.creator && typeof token.creator === "string" && token.creator.length >= 32
+
+    // فحص أن العملة غير مكتملة (pump.fun tokens عادة غير مكتملة)
+    const isPumpFunStyle = token.complete === false || token.complete === undefined
+
+    return hasRequiredFields && hasValidCreator && isPumpFunStyle
   }
 
   private generateRealisticFallbackData(limit: number): PumpFunToken[] {
@@ -270,7 +248,7 @@ class PumpFunAPI {
         total_supply: 1000000000,
         bonding_curve: this.generateValidBondingCurve(),
         associated_bonding_curve: this.generateValidBondingCurve(),
-        creator: this.generateValidCreator(), // استخدام عنوان Solana صحيح
+        creator: this.generateValidCreator(),
         market_cap: marketCap,
         reply_count: Math.floor(Math.random() * 200),
         nsfw: false,
@@ -289,13 +267,13 @@ class PumpFunAPI {
 
     for (const source of this.dataSources) {
       try {
-        if (source.name === "pump.fun-api") {
-          const response = await this.rateLimitedFetch(`https://frontend-api.pump.fun/coins/${mint}`, {
-            headers: source.headers,
-          })
+        const response = await this.rateLimitedFetch(`${source.url.replace("/coins", "")}/${mint}`, {
+          headers: source.headers,
+        })
 
-          if (response.ok) {
-            const data: PumpFunToken = await response.json()
+        if (response.ok) {
+          const data: PumpFunToken = await response.json()
+          if (this.isPumpFunToken(data)) {
             this.setCache(cacheKey, data)
             return data
           }
