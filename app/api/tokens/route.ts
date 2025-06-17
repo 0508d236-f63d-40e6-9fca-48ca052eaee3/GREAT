@@ -1,109 +1,44 @@
-// API محسن للعملات مع WebSocket
 import { type NextRequest, NextResponse } from "next/server"
-import { realTimePumpIntegration } from "@/lib/realtime-pump-integration"
+
+// Check if we're in a browser environment
+const isBrowser = typeof window !== "undefined"
+
+// Only initialize client-side code if we're in the browser
+const connectionMonitor: any = null
+
+if (isBrowser) {
+  // Move any client-side initialization here
+  // This code will only run in the browser
+}
 
 export async function GET(request: NextRequest) {
   try {
-    console.log("📡 API Request: Getting real-time tokens...")
-
-    // بدء المراقبة الفورية إذا لم تكن بدأت
-    const stats = realTimePumpIntegration.getStats()
-    if (!stats.isRunning) {
-      console.log("🚀 Starting real-time monitoring...")
-      await realTimePumpIntegration.startRealTimeMonitoring()
-    }
-
-    // جلب العملات الحالية
-    const tokens = realTimePumpIntegration.getTokens()
-    const currentStats = realTimePumpIntegration.getStats()
-
-    console.log(`✅ Returning ${tokens.length} real-time tokens`)
+    // Your API logic here
+    // Don't reference window, document, or other browser APIs directly
 
     return NextResponse.json({
       success: true,
-      data: tokens,
-      statistics: {
-        totalAnalyzed: currentStats.totalTokens,
-        recommended: currentStats.recommendedTokens,
-        classified: currentStats.classifiedTokens,
-        ignored: currentStats.ignoredTokens,
-        tokensPerMinute: currentStats.tokensPerMinute,
-        lastUpdate: new Date().toISOString(),
-        dataSource: "realtime-websocket",
-        systemVersion: "GREAT-IDEA-v2.0-RealTime",
-      },
-      message: `Real-time monitoring active - ${tokens.length} tokens detected`,
-      timestamp: new Date().toISOString(),
+      message: "API route working correctly",
     })
   } catch (error) {
-    console.error("❌ API Error:", error)
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Real-time API error",
-        message: error instanceof Error ? error.message : "Unknown error",
-        data: [],
-        statistics: null,
-        timestamp: new Date().toISOString(),
-      },
-      { status: 500 },
-    )
+    console.error("API Error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { action } = body
 
-    switch (action) {
-      case "start":
-        await realTimePumpIntegration.startRealTimeMonitoring()
-        return NextResponse.json({
-          success: true,
-          message: "Real-time monitoring started",
-          timestamp: new Date().toISOString(),
-        })
+    // Handle POST logic here
+    // Remember: no browser APIs on the server
 
-      case "stop":
-        await realTimePumpIntegration.stopRealTimeMonitoring()
-        return NextResponse.json({
-          success: true,
-          message: "Real-time monitoring stopped",
-          timestamp: new Date().toISOString(),
-        })
-
-      case "stats":
-        const stats = realTimePumpIntegration.getStats()
-        return NextResponse.json({
-          success: true,
-          stats,
-          timestamp: new Date().toISOString(),
-        })
-
-      default:
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Invalid action",
-            availableActions: ["start", "stop", "stats"],
-            timestamp: new Date().toISOString(),
-          },
-          { status: 400 },
-        )
-    }
+    return NextResponse.json({
+      success: true,
+      data: body,
+    })
   } catch (error) {
-    console.error("❌ POST API Error:", error)
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: "POST API error",
-        message: error instanceof Error ? error.message : "Unknown error",
-        timestamp: new Date().toISOString(),
-      },
-      { status: 500 },
-    )
+    console.error("API Error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

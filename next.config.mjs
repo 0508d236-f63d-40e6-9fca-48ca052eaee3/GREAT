@@ -9,9 +9,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  swcMinify: true,
-  reactStrictMode: true,
-  // إزالة جميع إعدادات output و trailingSlash
 }
 
 export default nextConfig
