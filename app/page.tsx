@@ -89,7 +89,7 @@ export default function PumpFunMonitor() {
   // Auto-fetch data continuously in background
   const fetchData = async () => {
     try {
-      const response = await fetch("/api/ultra-advanced-monitor?action=tokens", {
+      const response = await fetch("/api/tokens", {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       })
@@ -276,10 +276,12 @@ export default function PumpFunMonitor() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <img src="/logo.svg" alt="Pump.fun Monitor" className="h-16 w-auto" />
+            <div className="text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              GREAT IDEA
+            </div>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Pump.fun Monitor</h1>
-          <p className="text-lg text-gray-600 mb-4">Real-time detection and analysis of new pump.fun tokens</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">GREAT IDEA System</h1>
+          <p className="text-lg text-gray-600 mb-4">Advanced AI-powered crypto analysis platform</p>
 
           <div className="flex items-center justify-center gap-4">
             <Badge variant={isConnected ? "default" : "secondary"} className="text-lg px-4 py-2">
@@ -593,7 +595,7 @@ export default function PumpFunMonitor() {
                   {tokens.length === 0 ? "No tokens detected yet" : "No tokens match your filters"}
                 </p>
                 <p className="text-sm text-gray-500 mt-2">
-                  {isConnected ? "Monitoring pump.fun for new tokens..." : "Connecting to monitoring system..."}
+                  {isConnected ? "Analyzing real pump.fun tokens..." : "Connecting to GREAT IDEA system..."}
                 </p>
                 {error && (
                   <Button onClick={restartMonitoring} className="mt-4" variant="outline">
