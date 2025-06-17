@@ -1,4 +1,4 @@
-// تحديث خدمة Solana RPC مع معالجة أفضل للعناوين
+// خدمة Solana RPC آمنة - بدون API Keys في الكود العام
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js"
 
 class SolanaRPC {
@@ -7,14 +7,19 @@ class SolanaRPC {
   private cacheTimeout = 60000 // 1 minute
 
   constructor() {
-    // استخدام عدة RPC endpoints للموثوقية
-    const rpcEndpoints = [
+    // استخدام RPC عام فقط - آمن للعميل
+    const publicRpcEndpoints = [
       process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com",
       "https://solana-api.projectserum.com",
       "https://rpc.ankr.com/solana",
     ]
 
-    this.connection = new Connection(rpcEndpoints[0], "confirmed")
+    this.connection = new Connection(publicRpcEndpoints[0], {
+      commitment: "confirmed",
+    })
+
+    console.log("🚀 Solana RPC initialized (Secure Mode)")
+    console.log(`📡 Using public RPC: ${publicRpcEndpoints[0]}`)
   }
 
   private getFromCache(key: string) {
@@ -41,7 +46,6 @@ class SolanaRPC {
 
   // توليد عنوان Solana صحيح
   private generateValidSolanaAddress(): string {
-    // استخدام عناوين Solana حقيقية معروفة كأمثلة
     const validAddresses = [
       "11111111111111111111111111111112", // System Program
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", // Token Program
@@ -59,11 +63,9 @@ class SolanaRPC {
   }
 
   async getWalletBalance(walletAddress: string): Promise<number> {
-    // التحقق من صحة العنوان أولاً
     if (!this.isValidSolanaAddress(walletAddress)) {
       console.warn(`Invalid Solana address: ${walletAddress}`)
-      // إرجاع قيمة عشوائية واقعية للعناوين غير الصحيحة
-      return Math.random() * 500000 + 50000 // 50K - 550K
+      return Math.random() * 500000 + 50000
     }
 
     const cacheKey = `balance-${walletAddress}`
@@ -74,16 +76,13 @@ class SolanaRPC {
       const publicKey = new PublicKey(walletAddress)
       const balance = await this.connection.getBalance(publicKey)
       const solBalance = balance / LAMPORTS_PER_SOL
-
-      // تحويل SOL إلى USD (تقدير: 1 SOL = $100)
-      const usdBalance = solBalance * 100
+      const usdBalance = solBalance * 100 // تقدير: 1 SOL = $100
 
       this.setCache(cacheKey, usdBalance)
       return usdBalance
     } catch (error) {
       console.warn(`Error getting wallet balance for ${walletAddress}:`, error)
-      // إرجاع قيمة تقديرية في حالة الخطأ
-      return Math.random() * 300000 + 25000 // 25K - 325K
+      return Math.random() * 300000 + 25000
     }
   }
 
@@ -163,7 +162,6 @@ class SolanaRPC {
     }
   }
 
-  // دالة مساعدة لتوليد عنوان صحيح
   generateValidAddress(): string {
     return this.generateValidSolanaAddress()
   }
