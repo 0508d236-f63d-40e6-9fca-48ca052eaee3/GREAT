@@ -188,13 +188,31 @@ class PerformanceOptimizer {
     try {
       console.log(`🚀 Executing request: ${url}`)
 
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000) // Reduced to 5 seconds
+
       const response = await fetch(url, {
         ...options,
-        signal: AbortSignal.timeout(8000), // 8 second timeout
+        signal: controller.signal,
+        mode: "cors",
+        credentials: "omit",
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Cache-Control": "no-cache",
+          ...options.headers,
+        },
       })
+
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Response is not JSON")
       }
 
       const data = await response.json()
@@ -209,7 +227,8 @@ class PerformanceOptimizer {
       console.log(`✅ Request completed: ${url} (${responseTime}ms)`)
       return data as T
     } catch (error) {
-      console.error(`❌ Request failed: ${url}`, error)
+      const responseTime = Date.now() - startTime
+      console.error(`❌ Request failed: ${url} (${responseTime}ms)`, error)
       this.stats.errorRate = this.stats.errorRate * 0.9 + 0.1 // Exponential moving average
       throw error
     } finally {
@@ -305,6 +324,17 @@ class PerformanceOptimizer {
     for (let i = 0; i < toRemove && i < entries.length; i++) {
       this.cache.delete(entries[i][0])
     }
+  }
+
+  private isValidResponse(data: any): boolean {
+    if (!data) return false
+
+    // Check if it's an array or has expected structure
+    if (Array.isArray(data)) return data.length > 0
+    if (data.coins && Array.isArray(data.coins)) return data.coins.length > 0
+    if (data.data && Array.isArray(data.data)) return data.data.length > 0
+
+    return false
   }
 
   public getStats(): PerformanceStats {
