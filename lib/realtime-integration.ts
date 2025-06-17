@@ -1,8 +1,8 @@
 // دمج المراقب مع النظام الموجود
-import { SolanaRealTimeMonitor, type NewCoinData } from "./solana-realtime-monitor"
+import { PumpFunDirectMonitor, type PumpFunToken } from "./pump-fun-direct-monitor"
 import { advancedAnalyzer } from "./advanced-analysis"
 
-interface RealTimeToken extends NewCoinData {
+interface RealTimeToken extends PumpFunToken {
   // إضافة خصائص التحليل
   final_percentage?: number
   classification?: "recommended" | "classified" | "ignored"
@@ -14,7 +14,7 @@ interface RealTimeToken extends NewCoinData {
 }
 
 class RealTimeIntegration {
-  private monitor: SolanaRealTimeMonitor | null = null
+  private monitor: PumpFunDirectMonitor | null = null
   private realtimeTokens: RealTimeToken[] = []
   private listeners: ((tokens: RealTimeToken[]) => void)[] = []
   private maxTokens = 100 // الحد الأقصى للعملات المحفوظة
@@ -26,10 +26,8 @@ class RealTimeIntegration {
   async startRealTimeMonitoring(apiKey?: string): Promise<void> {
     try {
       // إعداد المراقب
-      this.monitor = new SolanaRealTimeMonitor({
-        rpcUrl: "https://rpc.helius.xyz",
-        apiKey: apiKey || process.env.HELIUS_API_KEY,
-        onNewCoin: this.handleNewCoin.bind(this),
+      this.monitor = new PumpFunDirectMonitor({
+        onNewToken: this.handleNewToken.bind(this),
         onError: this.handleError.bind(this),
       })
 
@@ -45,47 +43,53 @@ class RealTimeIntegration {
 
   async stopRealTimeMonitoring(): Promise<void> {
     if (this.monitor) {
-      await this.monitor.stopMonitoring()
+      await this.monitor.stopRealTimeMonitoring() // كان stopMonitoring
       this.monitor = null
       console.log("🛑 Real-time monitoring stopped")
     }
   }
 
-  private async handleNewCoin(coinData: NewCoinData): Promise<void> {
+  private async handleNewToken(tokenData: PumpFunToken): Promise<void> {
     try {
-      console.log("🎉 Processing new real-time coin:", coinData.address)
+      console.log("🎉 Processing new pump.fun token:", tokenData.mint)
 
-      // تحويل البيانات إلى تنسيق النظام
+      // تحويل البيانات للتحليل
       const tokenForAnalysis = {
-        mint: coinData.address,
-        name: coinData.name || `RT-${coinData.symbol || "TOKEN"}`,
-        symbol: coinData.symbol || coinData.address.substring(0, 6).toUpperCase(),
-        description: coinData.description || `Real-time detected token: ${coinData.name}`,
-        image_uri: coinData.image || this.generatePlaceholderImage(coinData.symbol || "RT"),
-        creator: coinData.creator,
-        created_timestamp: coinData.timestamp.getTime() / 1000,
-        usd_market_cap: coinData.marketCap || coinData.liquidity * 1000,
-        virtual_sol_reserves: coinData.solReserves || coinData.liquidity,
-        virtual_token_reserves: coinData.tokenReserves || 1000000000,
-        complete: false,
-        is_currently_live: true,
+        mint: tokenData.mint,
+        name: tokenData.name,
+        symbol: tokenData.symbol,
+        description: tokenData.description,
+        image_uri: tokenData.image,
+        creator: tokenData.creator,
+        created_timestamp: tokenData.timestamp.getTime() / 1000,
+        usd_market_cap: tokenData.marketCap,
+        virtual_sol_reserves: tokenData.virtualSolReserves,
+        virtual_token_reserves: tokenData.virtualTokenReserves,
+        complete: tokenData.complete,
+        is_currently_live: tokenData.isLive,
         reply_count: 0,
-        market_cap: coinData.marketCap || coinData.liquidity * 1000,
-        total_supply: coinData.tokenReserves || 1000000000,
-        bonding_curve: coinData.address,
-        associated_bonding_curve: coinData.address,
+        market_cap: tokenData.marketCap,
+        total_supply: tokenData.virtualTokenReserves,
+        bonding_curve: tokenData.bondingCurve,
+        associated_bonding_curve: tokenData.bondingCurve,
         nsfw: false,
         show_name: true,
       }
 
-      // تحليل العملة باستخدام خوارزمية GREAT IDEA
+      // تحليل العملة
       const analyzedToken = await advancedAnalyzer.analyzeToken(tokenForAnalysis)
 
       // إنشاء العملة النهائية
       const realtimeToken: RealTimeToken = {
-        ...coinData,
+        address: tokenData.mint,
+        name: tokenData.name,
+        symbol: tokenData.symbol,
+        creator: tokenData.creator,
+        liquidity: tokenData.liquidity,
+        timestamp: tokenData.timestamp,
+        signature: tokenData.signature,
         ...analyzedToken,
-        _dataSource: "solana-realtime",
+        _dataSource: "pump-fun-direct",
         _isVerified: true,
         _isRealTime: true,
       }
@@ -93,32 +97,33 @@ class RealTimeIntegration {
       // إضافة العملة للقائمة
       this.addRealtimeToken(realtimeToken)
 
-      console.log("✅ Real-time token processed and analyzed:", {
-        address: realtimeToken.address,
+      console.log("✅ Pump.fun token processed:", {
+        mint: realtimeToken.address,
         name: realtimeToken.name,
         symbol: realtimeToken.symbol,
         percentage: realtimeToken.final_percentage,
         classification: realtimeToken.classification,
       })
     } catch (error) {
-      console.error("❌ Error processing real-time coin:", error)
+      console.error("❌ Error processing pump.fun token:", error)
     }
   }
 
   private handleError(error: Error): void {
     console.error("❌ Real-time monitor error:", error)
 
-    // محاولة إعادة التشغيل في حالة الخطأ
     setTimeout(async () => {
       try {
         console.log("🔄 Attempting to restart real-time monitor...")
         if (this.monitor) {
-          await this.monitor.restart()
+          await this.monitor.stopRealTimeMonitoring() // إيقاف أولاً
+          await new Promise((resolve) => setTimeout(resolve, 2000))
+          await this.monitor.startRealTimeMonitoring() // ثم إعادة تشغيل
         }
       } catch (restartError) {
         console.error("❌ Failed to restart monitor:", restartError)
       }
-    }, 10000) // إعادة المحاولة بعد 10 ثوان
+    }, 10000)
   }
 
   private addRealtimeToken(token: RealTimeToken): void {

@@ -26,26 +26,28 @@ export default function WalletConnect() {
 
     checkMetaMask()
 
-    // Listen for account changes
-    if (window.ethereum) {
-      window.ethereum.on("accountsChanged", (accounts: string[]) => {
+    // Listen for account changes only if MetaMask exists
+    if (typeof window !== "undefined" && window.ethereum) {
+      const handleAccountsChanged = (accounts: string[]) => {
         if (accounts.length === 0) {
           setAccount(null)
         } else {
           setAccount(accounts[0])
         }
-      })
-    }
+      }
 
-    return () => {
-      if (window.ethereum) {
-        window.ethereum.removeAllListeners("accountsChanged")
+      window.ethereum.on("accountsChanged", handleAccountsChanged)
+
+      return () => {
+        if (window.ethereum) {
+          window.ethereum.removeListener("accountsChanged", handleAccountsChanged)
+        }
       }
     }
   }, [])
 
   const connectWallet = async () => {
-    if (!isMetaMaskInstalled) {
+    if (typeof window === "undefined" || !window.ethereum) {
       setError("MetaMask is not installed. Please install MetaMask to continue.")
       return
     }

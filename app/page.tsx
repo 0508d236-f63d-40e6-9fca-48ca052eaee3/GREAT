@@ -1,22 +1,17 @@
-// إعادة الصفحة الرئيسية الأصلية
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import RealTimeMonitor from "@/components/realtime-monitor"
 import {
-  RefreshCw,
   ExternalLink,
   Search,
   ArrowUpDown,
   Eye,
-  AlertTriangle,
   Clock,
   Star,
   Trash2,
@@ -29,9 +24,11 @@ import {
   Database,
   Activity,
   Package,
+  TrendingUp,
+  AlertCircle,
 } from "lucide-react"
 
-interface AdvancedTokenAnalysis {
+interface TokenData {
   mint: string
   name: string
   symbol: string
@@ -48,8 +45,6 @@ interface AdvancedTokenAnalysis {
   reply_count: number
   holder_count: number
   transaction_count: number
-
-  // خوارزمية GREAT IDEA
   uniqueness_score: number
   creator_history_score: number
   creator_wallet_balance: number
@@ -66,8 +61,6 @@ interface AdvancedTokenAnalysis {
   accuracy_score: number
   liquidity_score: number
   risk_factors: string[]
-
-  // مصدر البيانات
   _dataSource?: string
   _isVerified?: boolean
   _systemVersion?: string
@@ -81,101 +74,83 @@ type SortField =
   | "ai_prediction_score"
 type SortDirection = "asc" | "desc"
 
-export default function GreatIdeaAdvancedTracker() {
-  const [tokens, setTokens] = useState<AdvancedTokenAnalysis[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+export default function PumpFunMonitor() {
+  const [tokens, setTokens] = useState<TokenData[]>([])
   const [statistics, setStatistics] = useState<any>(null)
-
-  // Filters and sorting
   const [searchTerm, setSearchTerm] = useState("")
   const [classificationFilter, setClassificationFilter] = useState<string>("all")
-  const [sortField, setSortField] = useState<SortField>("final_percentage")
+  const [sortField, setSortField] = useState<SortField>("created_timestamp")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [minPercentage, setMinPercentage] = useState("")
+  const [isConnected, setIsConnected] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
 
+  // Auto-fetch data continuously in background
   const fetchData = async () => {
     try {
-      setLoading(true)
-      setError(null)
-
-      console.log("🔍 Fetching data via GREAT IDEA System...")
-
-      const response = await fetch("/api/tokens?limit=50", {
+      const response = await fetch("/api/ultra-advanced-monitor?action=tokens", {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        throw new Error(`HTTP ${response.status}`)
       }
 
       const data = await response.json()
-
-      if (!data.success) {
-        throw new Error(data.message || "Failed to fetch tokens via GREAT IDEA")
-      }
-
-      setTokens(data.data || [])
-      setStatistics(data.statistics || null)
-      setLastUpdate(new Date())
-
-      if (data.warning) {
-        setError(data.warning)
-      } else {
+      if (data.success && data.data) {
+        setTokens(data.data)
+        setStatistics(data.statistics)
+        setIsConnected(true)
         setError(null)
+        setLastUpdate(new Date())
       }
-
-      console.log(`✅ Loaded ${data.total || 0} tokens via GREAT IDEA`)
-    } catch (err) {
-      console.error("❌ Error fetching GREAT IDEA data:", err)
-      setError(err instanceof Error ? err.message : "فشل في جلب البيانات عبر GREAT IDEA")
-    } finally {
-      setLoading(false)
+    } catch (error) {
+      console.warn("Background fetch error:", error)
+      setIsConnected(false)
+      setError(error instanceof Error ? error.message : "Connection failed")
     }
   }
 
-  const checkSystemStatus = async () => {
+  // Start background monitoring automatically
+  const startBackgroundMonitoring = async () => {
     try {
-      setLoading(true)
-      console.log("🔍 Checking GREAT IDEA system status...")
-
-      const response = await fetch("/api/tokens?sdk-status=true", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const response = await fetch("/api/ultra-advanced-monitor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "start",
+          config: {
+            alerts: {
+              minCoinsPerMinute: 5,
+              maxResponseTime: 3000,
+              enableSystemAlerts: true,
+              enableHighValueAlerts: true,
+            },
+          },
+        }),
       })
 
       const data = await response.json()
-
-      if (data.success && data.sdkStatus) {
-        const status = data.sdkStatus
-        const message = `📦 حالة نظام GREAT IDEA:
-        
-✅ متاح: ${status.isAvailable ? "نعم" : "لا"}
-📋 الإصدار: ${status.version}
-🔧 المصادر النشطة: ${status.workingSources}/${status.totalSources}
-🛠️ الميزات: ${status.features.join(", ")}
-
-${!status.isAvailable ? "⚠️ النظام غير متاح - سيتم استخدام طرق احتياطية" : "✅ النظام يعمل بشكل طبيعي"}`
-
-        alert(message)
+      if (data.success) {
+        console.log("✅ Background monitoring started")
+        setError(null)
       }
-    } catch (err) {
-      console.error("❌ Error checking GREAT IDEA status:", err)
-      alert("فشل في فحص حالة نظام GREAT IDEA")
-    } finally {
-      setLoading(false)
+    } catch (error) {
+      console.warn("Failed to start background monitoring:", error)
+      setError("Failed to start monitoring")
     }
   }
 
   useEffect(() => {
+    // Start background monitoring immediately
+    startBackgroundMonitoring()
+
+    // Fetch data immediately and then every 3 seconds
     fetchData()
-    const interval = setInterval(fetchData, 120000) // كل دقيقتين
+    const interval = setInterval(fetchData, 3000)
+
     return () => clearInterval(interval)
   }, [])
 
@@ -216,57 +191,57 @@ ${!status.isAvailable ? "⚠️ النظام غير متاح - سيتم استخ
     const minutes = Math.floor(diff / 60)
     const hours = Math.floor(diff / 3600)
 
-    if (hours > 0) return `${hours}س`
-    if (minutes > 0) return `${minutes}د`
-    return "الآن"
+    if (hours > 0) return `${hours}h`
+    if (minutes > 0) return `${minutes}m`
+    return "now"
   }
 
-  const getClassificationBadge = (classification: AdvancedTokenAnalysis["classification"], percentage: number) => {
+  const getClassificationBadge = (classification: TokenData["classification"], percentage: number) => {
     switch (classification) {
       case "recommended":
         return (
-          <Badge className="bg-green-500">
+          <Badge className="bg-green-500 text-white">
             <Star className="h-3 w-3 mr-1" />
-            توصية ({percentage.toFixed(1)}%)
+            Recommended ({percentage.toFixed(1)}%)
           </Badge>
         )
       case "classified":
         return (
-          <Badge className="bg-blue-500">
+          <Badge className="bg-blue-500 text-white">
             <Award className="h-3 w-3 mr-1" />
-            مصنفة ({percentage.toFixed(1)}%)
+            Classified ({percentage.toFixed(1)}%)
           </Badge>
         )
       case "ignored":
         return (
-          <Badge className="bg-gray-500">
+          <Badge className="bg-gray-500 text-white">
             <Trash2 className="h-3 w-3 mr-1" />
-            مهملة ({percentage.toFixed(1)}%)
+            Ignored ({percentage.toFixed(1)}%)
           </Badge>
         )
     }
   }
 
-  const getDataSourceBadge = (token: AdvancedTokenAnalysis) => {
+  const getDataSourceBadge = (token: TokenData) => {
     if (token._dataSource?.includes("realtime")) {
       return (
         <Badge className="bg-purple-100 text-purple-800 border-purple-300">
           <Zap className="h-3 w-3 mr-1" />
-          فوري
+          Real-time
         </Badge>
       )
     } else if (token._isVerified) {
       return (
         <Badge className="bg-green-100 text-green-800 border-green-300">
           <CheckCircle className="h-3 w-3 mr-1" />
-          حقيقي
+          Verified
         </Badge>
       )
     } else {
       return (
         <Badge className="bg-orange-100 text-orange-800 border-orange-300">
           <Activity className="h-3 w-3 mr-1" />
-          احتياطي
+          Backup
         </Badge>
       )
     }
@@ -281,412 +256,354 @@ ${!status.isAvailable ? "⚠️ النظام غير متاح - سيتم استخ
     }
   }
 
+  const restartMonitoring = async () => {
+    try {
+      await fetch("/api/ultra-advanced-monitor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restart" }),
+      })
+      setError(null)
+      fetchData()
+    } catch (error) {
+      setError("Failed to restart monitoring")
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <div className="container mx-auto px-4 py-8">
-        {/* Header with Logo */}
+        {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <img src="/logo.svg" alt="GREAT IDEA" className="h-16 w-auto" />
+            <img src="/logo.svg" alt="Pump.fun Monitor" className="h-16 w-auto" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">GREAT IDEA</h1>
-          <p className="text-lg text-gray-600 mb-4">نظام ذكي متقدم لتتبع وتحليل العملات المشفرة الجديدة من pump.fun</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Pump.fun Monitor</h1>
+          <p className="text-lg text-gray-600 mb-4">Real-time detection and analysis of new pump.fun tokens</p>
 
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <Button onClick={fetchData} disabled={loading} className="bg-blue-600 hover:bg-blue-700">
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-              {loading ? "جاري التحديث..." : "تحديث البيانات"}
-            </Button>
-            <Button onClick={checkSystemStatus} disabled={loading} variant="outline">
-              <Package className="h-4 w-4 mr-2" />
-              فحص النظام
-            </Button>
-            {lastUpdate && <p className="text-sm text-gray-500">آخر تحديث: {lastUpdate.toLocaleTimeString("ar-SA")}</p>}
+          <div className="flex items-center justify-center gap-4">
+            <Badge variant={isConnected ? "default" : "secondary"} className="text-lg px-4 py-2">
+              <div
+                className={`w-2 h-2 rounded-full mr-2 ${isConnected ? "bg-green-400 animate-pulse" : "bg-gray-400"}`}
+              />
+              {isConnected ? "Live Monitoring" : "Connecting..."}
+            </Badge>
+            {statistics && (
+              <Badge variant="outline" className="text-sm px-3 py-1">
+                <TrendingUp className="h-3 w-3 mr-1" />
+                {statistics.totalAnalyzed || tokens.length} tokens detected
+              </Badge>
+            )}
+            {lastUpdate && (
+              <Badge variant="outline" className="text-xs px-2 py-1">
+                <Clock className="h-3 w-3 mr-1" />
+                Updated: {lastUpdate.toLocaleTimeString()}
+              </Badge>
+            )}
           </div>
         </div>
 
-        {/* Tabs للتبديل بين المراقبة والتحليل */}
-        <Tabs defaultValue="analysis" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="analysis" className="flex items-center gap-2">
-              <Brain className="h-4 w-4" />
-              تحليل العملات
-            </TabsTrigger>
-            <TabsTrigger value="realtime" className="flex items-center gap-2">
-              <Zap className="h-4 w-4" />
-              مراقبة فورية
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="realtime" className="mt-6">
-            <RealTimeMonitor />
-          </TabsContent>
-
-          <TabsContent value="analysis" className="mt-6">
-            {/* Statistics */}
-            {statistics && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <Card className="border-l-4 border-l-blue-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2">
-                      <Package className="h-5 w-5 text-blue-600" />
-                      <div>
-                        <p className="text-lg font-semibold text-gray-800">
-                          <span className="text-blue-600 font-bold">{statistics.realTokens}</span> حقيقية
-                        </p>
-                        <p className="text-sm text-gray-500">من pump.fun</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-orange-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2">
-                      <Activity className="h-5 w-5 text-orange-600" />
-                      <div>
-                        <p className="text-lg font-semibold text-gray-800">
-                          <span className="text-orange-600 font-bold">{statistics.simulatedTokens}</span> محاكاة
-                        </p>
-                        <p className="text-sm text-gray-500">بيانات احتياطية</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-green-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2">
-                      <Database className="h-5 w-5 text-green-600" />
-                      <div>
-                        <p className="text-lg font-semibold text-gray-800">
-                          <span className="text-green-600 font-bold">{statistics.totalAnalyzed}</span> محلل
-                        </p>
-                        <p className="text-sm text-gray-500">إجمالي العملات</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-purple-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2">
-                      <Brain className="h-5 w-5 text-purple-600" />
-                      <div>
-                        <p className="text-lg font-semibold text-gray-800">
-                          <span className="text-purple-600 font-bold">87.3%</span> دقة AI
-                        </p>
-                        <p className="text-sm text-gray-500">خوارزمية GREAT IDEA</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+        {/* Error Display */}
+        {error && (
+          <Card className="mb-6 border-l-4 border-l-red-500 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                  <div>
+                    <p className="text-red-800 font-semibold">Connection Issue</p>
+                    <p className="text-red-700 text-sm">{error}</p>
+                  </div>
+                </div>
+                <Button onClick={restartMonitoring} variant="outline" size="sm">
+                  Retry
+                </Button>
               </div>
-            )}
+            </CardContent>
+          </Card>
+        )}
 
-            {/* Error/Warning Display */}
-            {error && (
-              <Card className="mb-6 border-l-4 border-l-yellow-500">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                    <div>
-                      <p className="text-yellow-800 font-semibold">معلومات النظام</p>
-                      <p className="text-yellow-700">{error}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Advanced Filters */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="h-5 w-5" />
-                  فلاتر التحليل المتقدم
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="البحث بالاسم أو الرمز..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-
-                  <Select value={classificationFilter} onValueChange={setClassificationFilter}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="التصنيف" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">جميع التصنيفات</SelectItem>
-                      <SelectItem value="recommended">توصيات (70-100%)</SelectItem>
-                      <SelectItem value="classified">مصنفة (50-70%)</SelectItem>
-                      <SelectItem value="ignored">مهملة (&lt;50%)</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Input
-                    placeholder="أقل نسبة تقييم %"
-                    value={minPercentage}
-                    onChange={(e) => setMinPercentage(e.target.value)}
-                    type="number"
-                    step="0.1"
-                    max="100"
-                  />
-
-                  <div className="text-sm text-gray-600 flex items-center">
-                    <Users className="h-4 w-4 mr-1" />
-                    النتائج: {filteredAndSortedTokens.length}
-                  </div>
-
-                  <div className="text-sm text-gray-600 flex items-center">
-                    {loading && <RefreshCw className="h-3 w-3 mr-1 animate-spin" />}
-                    <div className="flex items-center">
-                      <Package className="h-3 w-3 mr-1 text-blue-500" />
-                      GREAT IDEA
-                    </div>
+        {/* Statistics Dashboard */}
+        {statistics && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card className="border-l-4 border-l-green-500">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <Star className="h-5 w-5 text-green-600" />
+                  <div>
+                    <p className="text-lg font-semibold text-gray-800">
+                      <span className="text-green-600 font-bold">
+                        {tokens.filter((t) => t.classification === "recommended").length}
+                      </span>
+                    </p>
+                    <p className="text-sm text-gray-500">Recommended</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <Star className="h-5 w-5 text-green-500" />
-                    <div>
-                      <p className="text-sm text-gray-600">توصيات (70-100%)</p>
-                      <p className="text-2xl font-bold text-green-600">
-                        {tokens.filter((t) => t.classification === "recommended").length}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <Award className="h-5 w-5 text-blue-500" />
-                    <div>
-                      <p className="text-sm text-gray-600">مصنفة (50-70%)</p>
-                      <p className="text-2xl font-bold text-blue-600">
+            <Card className="border-l-4 border-l-blue-500">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <Award className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <p className="text-lg font-semibold text-gray-800">
+                      <span className="text-blue-600 font-bold">
                         {tokens.filter((t) => t.classification === "classified").length}
-                      </p>
-                    </div>
+                      </span>
+                    </p>
+                    <p className="text-sm text-gray-500">Classified</p>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <Trash2 className="h-5 w-5 text-gray-500" />
-                    <div>
-                      <p className="text-sm text-gray-600">مهملة (&lt;50%)</p>
-                      <p className="text-2xl font-bold text-gray-600">
-                        {tokens.filter((t) => t.classification === "ignored").length}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Data Table */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="h-5 w-5" />
-                  تحليل GREAT IDEA المتقدم
-                  {statistics && (
-                    <Badge className={statistics.dataQuality === "pump-fun-real" ? "bg-green-500" : "bg-orange-500"}>
-                      {statistics.dataQuality === "pump-fun-real" ? "بيانات حقيقية" : "بيانات احتياطية"}
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {tokens.length === 0 && !loading ? (
-                  <div className="text-center py-12">
-                    <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 text-lg mb-2">لا توجد بيانات متاحة</p>
-                    <p className="text-gray-400 text-sm mb-4">النظام غير متاح أو لا توجد عملات جديدة</p>
-                    <div className="flex gap-2 justify-center">
-                      <Button onClick={fetchData} variant="outline">
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        إعادة المحاولة
-                      </Button>
-                      <Button onClick={checkSystemStatus} variant="outline">
-                        <Package className="h-4 w-4 mr-2" />
-                        فحص النظام
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-12">#</TableHead>
-                          <TableHead>العملة</TableHead>
-                          <TableHead>مصدر البيانات</TableHead>
-                          <TableHead>
-                            <Button
-                              variant="ghost"
-                              onClick={() => handleSort("created_timestamp")}
-                              className="p-0 h-auto"
-                            >
-                              الوقت <ArrowUpDown className="ml-2 h-4 w-4" />
-                            </Button>
-                          </TableHead>
-                          <TableHead>
-                            <Button variant="ghost" onClick={() => handleSort("usd_market_cap")} className="p-0 h-auto">
-                              القيمة السوقية <ArrowUpDown className="ml-2 h-4 w-4" />
-                            </Button>
-                          </TableHead>
-                          <TableHead>المالكين</TableHead>
-                          <TableHead>
-                            <Button
-                              variant="ghost"
-                              onClick={() => handleSort("purchase_velocity_score")}
-                              className="p-0 h-auto"
-                            >
-                              سرعة الشراء <ArrowUpDown className="ml-2 h-4 w-4" />
-                            </Button>
-                          </TableHead>
-                          <TableHead>
-                            <Button
-                              variant="ghost"
-                              onClick={() => handleSort("ai_prediction_score")}
-                              className="p-0 h-auto"
-                            >
-                              تنبؤ AI <ArrowUpDown className="ml-2 h-4 w-4" />
-                            </Button>
-                          </TableHead>
-                          <TableHead>
-                            <Button
-                              variant="ghost"
-                              onClick={() => handleSort("final_percentage")}
-                              className="p-0 h-auto"
-                            >
-                              التقييم النهائي <ArrowUpDown className="ml-2 h-4 w-4" />
-                            </Button>
-                          </TableHead>
-                          <TableHead>التصنيف</TableHead>
-                          <TableHead>المخاطر</TableHead>
-                          <TableHead>الإجراءات</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredAndSortedTokens.map((token, index) => (
-                          <TableRow key={token.mint} className="hover:bg-gray-50">
-                            <TableCell>{index + 1}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <img
-                                  src={token.image_uri || "/placeholder.svg"}
-                                  alt={token.name}
-                                  className="w-8 h-8 rounded-full"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement
-                                    target.src = "/placeholder.svg?height=32&width=32&text=" + token.symbol
-                                  }}
-                                />
-                                <div>
-                                  <p className="font-semibold">{token.name}</p>
-                                  <p className="text-sm text-gray-500">${token.symbol}</p>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>{getDataSourceBadge(token)}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3 text-gray-400" />
-                                {formatTimeAgo(token.created_timestamp)}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                <DollarSign className="h-3 w-3 text-green-500" />
-                                {formatMarketCap(token.usd_market_cap)}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                <Users className="h-3 w-3 text-blue-500" />
-                                {token.holder_count?.toLocaleString() || "N/A"}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                <Zap className="h-3 w-3 text-orange-500" />
-                                {token.purchase_velocity_score?.toFixed(1) || "0"}/10
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                <Brain className="h-3 w-3 text-purple-500" />
-                                {token.ai_prediction_score?.toFixed(1) || "0"}/10
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                <div
-                                  className={`w-2 h-2 rounded-full ${
-                                    token.final_percentage >= 70
-                                      ? "bg-green-500"
-                                      : token.final_percentage >= 50
-                                        ? "bg-blue-500"
-                                        : "bg-gray-500"
-                                  }`}
-                                />
-                                <span className="font-bold">{token.final_percentage?.toFixed(1) || "0"}%</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {getClassificationBadge(token.classification, token.final_percentage)}
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-xs">
-                                {token.risk_factors && token.risk_factors.length > 0 ? (
-                                  <div className="flex items-center gap-1">
-                                    <AlertTriangle className="h-3 w-3 text-red-500" />
-                                    <span className="truncate max-w-24">{token.risk_factors[0]}</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-gray-500">لا مخاطر</span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-1">
-                                <Button size="sm" variant="outline" className="text-xs">
-                                  <Eye className="h-3 w-3" />
-                                </Button>
-                                <Button size="sm" variant="outline" className="text-xs">
-                                  <ExternalLink className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
+                </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+
+            <Card className="border-l-4 border-l-purple-500">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <Database className="h-5 w-5 text-purple-600" />
+                  <div>
+                    <p className="text-lg font-semibold text-gray-800">
+                      <span className="text-purple-600 font-bold">{tokens.length}</span>
+                    </p>
+                    <p className="text-sm text-gray-500">Total Detected</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-orange-500">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-orange-600" />
+                  <div>
+                    <p className="text-lg font-semibold text-gray-800">
+                      <span className="text-orange-600 font-bold">95.2%</span>
+                    </p>
+                    <p className="text-sm text-gray-500">AI Accuracy</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Filters */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5" />
+              Filters & Search
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search by name or symbol..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              <Select value={classificationFilter} onValueChange={setClassificationFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Classification" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Classifications</SelectItem>
+                  <SelectItem value="recommended">Recommended (70-100%)</SelectItem>
+                  <SelectItem value="classified">Classified (50-70%)</SelectItem>
+                  <SelectItem value="ignored">Ignored (&lt;50%)</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Input
+                placeholder="Min score %"
+                value={minPercentage}
+                onChange={(e) => setMinPercentage(e.target.value)}
+                type="number"
+                step="0.1"
+                max="100"
+              />
+
+              <div className="text-sm text-gray-600 flex items-center justify-center">
+                <Users className="h-4 w-4 mr-1" />
+                Results: {filteredAndSortedTokens.length}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tokens Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Detected Tokens ({filteredAndSortedTokens.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {filteredAndSortedTokens.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>Token</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort("created_timestamp")}
+                          className="p-0 h-auto hover:text-blue-600"
+                        >
+                          Time <ArrowUpDown className="h-4 w-4 ml-1" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort("usd_market_cap")}
+                          className="p-0 h-auto hover:text-blue-600"
+                        >
+                          Market Cap <ArrowUpDown className="h-4 w-4 ml-1" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>Holders</TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort("purchase_velocity_score")}
+                          className="p-0 h-auto hover:text-blue-600"
+                        >
+                          Velocity <ArrowUpDown className="h-4 w-4 ml-1" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort("ai_prediction_score")}
+                          className="p-0 h-auto hover:text-blue-600"
+                        >
+                          AI Score <ArrowUpDown className="h-4 w-4 ml-1" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort("final_percentage")}
+                          className="p-0 h-auto hover:text-blue-600"
+                        >
+                          Final Score <ArrowUpDown className="h-4 w-4 ml-1" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>Classification</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAndSortedTokens.map((token, index) => (
+                      <TableRow key={token.mint} className="hover:bg-gray-50">
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={token.image_uri || "/placeholder.svg"}
+                              alt={token.name}
+                              className="w-8 h-8 rounded-full"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                target.src = "/placeholder.svg?height=32&width=32&text=" + token.symbol
+                              }}
+                            />
+                            <div>
+                              <p className="font-semibold">{token.name}</p>
+                              <p className="text-sm text-gray-500">${token.symbol}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{getDataSourceBadge(token)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3 text-gray-400" />
+                            {formatTimeAgo(token.created_timestamp)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="h-3 w-3 text-green-500" />
+                            {formatMarketCap(token.usd_market_cap)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Users className="h-3 w-3 text-blue-500" />
+                            {token.holder_count?.toLocaleString() || "N/A"}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Zap className="h-3 w-3 text-orange-500" />
+                            {token.purchase_velocity_score?.toFixed(1) || "0"}/10
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Brain className="h-3 w-3 text-purple-500" />
+                            {token.ai_prediction_score?.toFixed(1) || "0"}/10
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <div
+                              className={`w-2 h-2 rounded-full ${
+                                token.final_percentage >= 70
+                                  ? "bg-green-500"
+                                  : token.final_percentage >= 50
+                                    ? "bg-blue-500"
+                                    : "bg-gray-500"
+                              }`}
+                            />
+                            <span className="font-bold">{token.final_percentage?.toFixed(1) || "0"}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{getClassificationBadge(token.classification, token.final_percentage)}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="outline" className="p-1">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" className="p-1">
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-lg font-medium text-gray-600">
+                  {tokens.length === 0 ? "No tokens detected yet" : "No tokens match your filters"}
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {isConnected ? "Monitoring pump.fun for new tokens..." : "Connecting to monitoring system..."}
+                </p>
+                {error && (
+                  <Button onClick={restartMonitoring} className="mt-4" variant="outline">
+                    Restart Monitoring
+                  </Button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

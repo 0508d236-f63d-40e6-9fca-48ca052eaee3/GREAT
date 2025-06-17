@@ -57,7 +57,7 @@ class SolanaRealTimeMonitor {
     console.log("📡 RPC URL:", rpcUrl.replace(/api-key=[^&]+/, "api-key=***"))
   }
 
-  async startMonitoring(): Promise<void> {
+  async startRealTimeMonitoring(): Promise<void> {
     if (this.isMonitoring) {
       console.log("⚠️ Monitor is already running")
       return
@@ -112,7 +112,7 @@ class SolanaRealTimeMonitor {
     }
   }
 
-  async stopMonitoring(): Promise<void> {
+  async stopRealTimeMonitoring(): Promise<void> {
     if (!this.isMonitoring) {
       console.log("⚠️ Monitor is not running")
       return
@@ -358,9 +358,9 @@ class SolanaRealTimeMonitor {
   // إعادة تشغيل المراقب في حالة انقطاع الاتصال
   async restart(): Promise<void> {
     console.log("🔄 Restarting monitor...")
-    await this.stopMonitoring()
+    await this.stopRealTimeMonitoring()
     await new Promise((resolve) => setTimeout(resolve, 2000)) // انتظار ثانيتين
-    await this.startMonitoring()
+    await this.startRealTimeMonitoring()
   }
 }
 
