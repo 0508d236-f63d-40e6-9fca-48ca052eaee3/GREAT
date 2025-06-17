@@ -24,31 +24,47 @@ class RealTimePumpIntegration {
     this.startPrefetching()
   }
 
+  // تحديث استيراد connection-monitor ليكون آمناً
   private initializeConnectionMonitor(): void {
-    import("./connection-monitor")
-      .then(({ connectionMonitor }) => {
-        this.connectionMonitor = connectionMonitor
+    // استيراد آمن مع معالجة الأخطاء
+    try {
+      import("./connection-monitor")
+        .then(({ connectionMonitor }) => {
+          this.connectionMonitor = connectionMonitor
 
-        // مراقبة حالة الاتصال
-        this.connectionMonitor.onConnectionChange((isOnline: boolean) => {
-          if (isOnline && !this.isRunning) {
-            console.log("🔄 Connection restored - Restarting monitoring...")
-            this.startRealTimeMonitoring()
-          } else if (!isOnline) {
-            console.log("⚠️ Connection lost - Entering offline mode...")
-            this.handleConnectionLoss()
-          }
-        })
+          // مراقبة حالة الاتصال
+          this.connectionMonitor.onConnectionChange((isOnline: boolean) => {
+            if (isOnline && !this.isRunning) {
+              console.log("🔄 Connection restored - Restarting monitoring...")
+              this.startRealTimeMonitoring()
+            } else if (!isOnline) {
+              console.log("⚠️ Connection lost - Entering offline mode...")
+              this.handleConnectionLoss()
+            }
+          })
 
-        // مراقبة أخطاء API
-        this.connectionMonitor.onApiError((error: any) => {
-          console.log("🔧 API Error detected - Auto-recovering...")
-          this.handleApiError(error)
+          // مراقبة أخطاء API
+          this.connectionMonitor.onApiError((error: any) => {
+            console.log("🔧 API Error detected - Auto-recovering...")
+            this.handleApiError(error)
+          })
+
+          console.log("✅ Connection monitor loaded successfully")
         })
-      })
-      .catch((error) => {
-        console.warn("Connection monitor not available:", error)
-      })
+        .catch((error) => {
+          console.warn("⚠️ Connection monitor not available, using fallback mode:", error)
+          // العمل بدون connection monitor
+          this.connectionMonitor = null
+        })
+    } catch (error) {
+      console.warn("⚠️ Failed to import connection monitor:", error)
+      this.connectionMonitor = null
+    }
+  }
+
+  // إضافة دالة للتحقق من حالة الاتصال بدون connection monitor
+  private checkConnectionFallback(): boolean {
+    return navigator.onLine && window.fetch !== undefined
   }
 
   private startCacheCleanup(): void {
@@ -183,6 +199,51 @@ class RealTimePumpIntegration {
     return []
   }
 
+  // إضافة استيراد آمن لـ performanceOptimizer
+  private async fetchRealTokensOptimized(limit = 50): Promise<any[]> {
+    try {
+      // استيراد آمن لمحسن الأداء
+      const { performanceOptimizer } = await import("./performance-optimizer")
+
+      const endpoints = [
+        `https://frontend-api.pump.fun/coins?offset=0&limit=${limit}&sort=created_timestamp&order=DESC`,
+        `https://api.pump.fun/coins?offset=0&limit=${limit}`,
+        `https://pump.fun/api/coins?limit=${limit}`,
+      ]
+
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🔍 Trying optimized endpoint: ${endpoint}`)
+
+          const data = await performanceOptimizer.optimizedFetch(endpoint, {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+              "User-Agent": "Mozilla/5.0 (compatible; GREAT-IDEA-Bot/1.0)",
+            },
+            ttl: 30000, // 30 seconds cache
+          })
+
+          const tokens = Array.isArray(data) ? data : data.coins || data.data || []
+
+          if (tokens.length > 0) {
+            console.log(`✅ Successfully fetched ${tokens.length} optimized tokens`)
+            return this.processRealTokens(tokens)
+          }
+        } catch (error) {
+          console.warn(`⚠️ Optimized endpoint failed: ${endpoint}`, error)
+          continue
+        }
+      }
+
+      console.log("⚠️ All optimized endpoints failed - using fallback")
+      return []
+    } catch (importError) {
+      console.warn("⚠️ Performance optimizer not available, using standard fetch:", importError)
+      return this.fetchRealTokensWithFallback()
+    }
+  }
+
   private processRealTokens(rawTokens: any[]): any[] {
     return rawTokens.slice(0, 50).map((token) => {
       // تحليل متقدم للعملة الحقيقية
@@ -311,12 +372,7 @@ class RealTimePumpIntegration {
     return Math.min(10, score)
   }
 
-  private startHealthMonitor(): void {
-    this.healthCheckInterval = setInterval(() => {
-      this.performHealthCheck()
-    }, 30000) // فحص كل 30 ثانية
-  }
-
+  // تحديث دالة performHealthCheck لتعمل بدون connection monitor
   private performHealthCheck(): void {
     const now = Date.now()
     const timeSinceLastUpdate = now - this.lastSuccessfulUpdate
@@ -334,6 +390,12 @@ class RealTimePumpIntegration {
         console.log("⚠️ Health check - Connection is offline")
         this.handleConnectionLoss()
       }
+    } else {
+      // استخدام fallback للتحقق من الاتصال
+      if (!this.checkConnectionFallback()) {
+        console.log("⚠️ Health check - Connection appears offline (fallback)")
+        this.handleConnectionLoss()
+      }
     }
 
     // فحص عدد الأخطاء المتتالية
@@ -341,6 +403,12 @@ class RealTimePumpIntegration {
       console.log("⚠️ Health check - Too many consecutive errors")
       this.handleTooManyErrors()
     }
+  }
+
+  private startHealthMonitor(): void {
+    this.healthCheckInterval = setInterval(() => {
+      this.performHealthCheck()
+    }, 30000) // فحص كل 30 ثانية
   }
 
   private handleHealthCheckFailure(): void {
