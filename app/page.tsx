@@ -26,6 +26,7 @@ import {
   Package,
   TrendingUp,
   AlertCircle,
+  Info,
 } from "lucide-react"
 
 interface TokenData {
@@ -302,6 +303,22 @@ export default function PumpFunMonitor() {
                 Updated: {lastUpdate.toLocaleTimeString()}
               </Badge>
             )}
+          </div>
+        </div>
+
+        {/* Disclaimer Alert */}
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800 text-sm">
+          <div className="flex items-start gap-2">
+            <Info className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-semibold mb-1">DISCLAIMER</p>
+              <p>
+                The information provided by GREAT IDEA is for informational purposes only and does not constitute
+                investment advice. All data represents community-shared analysis and should not be considered as
+                financial recommendations. Users are solely responsible for their investment decisions. Cryptocurrency
+                investments involve significant risk and may result in substantial losses.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -606,6 +623,11 @@ export default function PumpFunMonitor() {
             )}
           </CardContent>
         </Card>
+
+        {/* Footer Disclaimer */}
+        <div className="mt-8 text-center text-xs text-gray-500">
+          <p>GREAT IDEA © 2023 | Not financial advice | All investment decisions are your own responsibility</p>
+        </div>
       </div>
     </div>
   )
